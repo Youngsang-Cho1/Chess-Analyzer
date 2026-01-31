@@ -1,6 +1,5 @@
-from sqlalchemy import create_engine 
-from sqlalchemy.orm import sessionmaker 
-
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 from dotenv import load_dotenv
 
@@ -14,9 +13,9 @@ DATABASE_URL = f"postgresql://{USER}:{PASSWORD}@db:5432/{DB_NAME}"
 engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-try:
-    with engine.connect() as connection:
-        print("DB was connected successfully")
-except Exception as e:
-    print(f"Failed to connect to DB: {e}")
+def init_db():
+    # Import models here to ensure they are registered with Base.metadata
+    from models import Game
+    Base.metadata.create_all(bind=engine)
