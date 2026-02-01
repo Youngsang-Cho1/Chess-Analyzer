@@ -64,4 +64,3 @@ class ChessComClient:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching games for {username}: {e}")
             return None
-
