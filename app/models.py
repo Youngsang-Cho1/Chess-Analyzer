@@ -34,4 +34,5 @@ class MoveAnalysis(Base):
     score = Column(Integer) # Store as centipawns (can be null for mate)
     classification = Column(String) # Best, Good, Mistake, Blunder, etc.
     best_move = Column(String)
+    opening = Column(String)
 

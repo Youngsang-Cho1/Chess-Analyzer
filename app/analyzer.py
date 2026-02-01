@@ -45,8 +45,20 @@ def get_classification(diff):
 
     return "Blunder"
 
+PIECE_VALUES = {
+    chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
+    chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0
+}
+
+def get_material_value(board):
+    white, black = 0, 0
+    for piece in board.piece_map().values():
+        val = PIECE_VALUES.get(piece.piece_type, 0)
+        if piece.color == chess.WHITE: white += val
+        else: black += val
+    return white, black
+
 def analyze_game(pgn_string: str):
-    # init engine
     engine = Stockfish(path=stockfish_path, depth=15, parameters={"Threads": 2, "Hash": 128})
     
     pgn_io = io.StringIO(pgn_string)
@@ -63,31 +75,37 @@ def analyze_game(pgn_string: str):
         is_white = board.turn
         move_uci = move.uci()
         
-        # 1. Update board & Identify Opening
+        # 1. Update board & Opening
+        # Check for Active Sacrifice (Brilliant candidate) before push
+        is_sacrifice = False
+        if board.is_capture(move) and not board.is_en_passant(move):
+            attacker = board.piece_at(move.from_square)
+            victim = board.piece_at(move.to_square)
+            if attacker and victim:
+                val_diff = PIECE_VALUES[attacker.piece_type] - PIECE_VALUES[victim.piece_type]
+                if val_diff >= 3: is_sacrifice = True # e.g. RxP (5-1=4), QxN (6)
+
         board.push(move)
         opening_info = get_opening_details(board)
         if opening_info:
             current_opening = opening_info.get('name', current_opening)
         
-        # 2. Get Best Move (before move)
+        # 2. Get Top Moves (Best & Second Best)
         board.pop()
         engine.set_fen_position(board.fen())
-
-        top_moves = engine.get_top_moves(2)['Move']
-
-
-        best_move = top_moves[0]
-        best_move_score = top_moves[0]['Centipawn']
         
-        second_best_move = top_moves[1]
-        second_best_move_score = None
+        # Get top 2 moves safely
+        top_moves = engine.get_top_moves(2)
+        best_move = top_moves[0]['Move']
+        best_score = top_moves[0].get('Centipawn') 
+        
+        second_score = None
+        if len(top_moves) > 1:
+            second_score = top_moves[1].get('Centipawn')
 
-        if second_best_move:
-            second_best_move_score = top_moves[1]['Centipawn']
+        board.push(move) 
         
-        board.push(move) # Restore state
-        
-        # 3. Evaluate Position
+        # 3. Evaluate Current Position
         engine.set_fen_position(board.fen())
         eval_data = engine.get_evaluation()
         
@@ -100,34 +118,30 @@ def analyze_game(pgn_string: str):
         
         # 4. Classify Move
         classification = "Normal"
-        second_best_move = engine.get_top_moves(2)[1]['Move']
-        if move_uci == best_move and curr_score_white - second_best_move > 150:
-            classification = "Great"
         
         if move_uci == best_move:
-            classification = "Best" # if the move is the best move, the classification is just "Best"
+            classification = "Best"
             diff = 0
-
-            if second_best_move_score and second_best_move_score - best_move_score > 150:
-                classification = "Great" # if the move is the best move, but the second best move is much worse, the classification is "Great"
-                                         # indicating that was the only "good" move in the position
+            
+            # Brilliant: Best Move + Active Sacrifice (e.g. QxN)
+            if is_sacrifice:
+                classification = "Brilliant"
+            # Great: Best Move + Large Gap to 2nd Best (>150cp)
+            elif best_score is not None and second_score is not None:
+                gap = abs(best_score - second_score)
+                if gap > 150:
+                    classification = "Great"
+                    
         else:
-            # POSITIVE diff = Bad move (Loss)
-            # NEGATIVE diff = Good move (Gain, e.g. opponent blundered or the player found better move)
+            # Calculate Centipawn Loss
+            if is_white: diff = prev_score - curr_score_white 
+            else:        diff = curr_score_white - prev_score 
             
-            if is_white: 
-                diff = prev_score - curr_score_white 
-            else:        
-                diff = curr_score_white - prev_score 
-            
-            # If diff is negative (we improved position), simply treat loss as 0
-            if diff < 0: 
-                diff = 0
-
+            if diff < 0: diff = 0
             classification = get_classification(diff)
 
         result = {
-            "move_number": i + 1,
+            "move_number": (i // 2) + 1,
             "move_uci": move_uci,
             "score": curr_score_white,
             "classification": classification,
@@ -136,8 +150,8 @@ def analyze_game(pgn_string: str):
         }
         analysis_results.append(result)
         
-        print(f"Move: {move_uci}, Class: {classification}, Score: {curr_score_white}, Opening: {current_opening}")
-        
         prev_score = curr_score_white
+        
+        print(f"Move: {move_uci}, Class: {classification}, Score: {curr_score_white}, Opening: {current_opening}")
 
     return analysis_results
