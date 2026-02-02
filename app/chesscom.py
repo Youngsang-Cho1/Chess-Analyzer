@@ -9,7 +9,6 @@ class ChessComClient:
         self.base_url = "https://api.chess.com/pub"
 
     def get_player_profile(self, username: str):
-        """Fetch player profile data."""
         url = f"{self.base_url}/player/{username}"
         try:
             res = requests.get(url, headers = self.headers)
@@ -64,3 +63,42 @@ class ChessComClient:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching games for {username}: {e}")
             return None
+    
+    def get_game_by_id(self, game_id: str):
+        try:
+            url = f"https://www.chess.com/callback/live/game/{game_id}"
+            res = requests.get(url, headers=self.headers)
+            res.raise_for_status()
+            data = res.json()
+            return data.get('game', {}).get('pgn')
+        except Exception as e:
+            print(f"Error fetching Game ID {game_id}: {e}")
+            return None
+
+    def get_latest_game_vs_player(self, username: str, opponent_username: str):
+        try:
+            archive_url = f"{self.base_url}/player/{username}/games/archives"
+            res = requests.get(archive_url, headers=self.headers)
+            res.raise_for_status()
+            archives = res.json().get('archives', [])
+            
+            for archive_url in reversed(archives):
+                games = requests.get(archive_url, headers=self.headers)
+                games.raise_for_status()
+                games = games.json().get('games', [])
+                
+                for game in games:
+                    white = game.get('white', {}).get('username', '').lower()
+                    black = game.get('black', {}).get('username', '').lower()
+                    target = opponent_username.lower()
+                    
+                    if white == target or black == target:
+                        return game.get('pgn')
+            
+            print(f"No game found against {opponent_username} in recent archive.")
+            return None
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Error searching game vs {opponent_username}: {e}")
+            return None
+    

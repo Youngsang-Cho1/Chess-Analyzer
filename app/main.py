@@ -13,9 +13,9 @@ def main():
     try:
         client = ChessComClient()
         test_user = "choys1211" 
-        print(f"--- Testing Chess.com API for user: {test_user} ---")
+        print(f"--- Testing Chess.com API for user: {test_user} ---\n")
         
-        print("\n1. Fetching Profile...")
+        print("1. Fetching Profile...")
         profile = client.get_player_profile(test_user)
         if profile:
             print(f"Success! Name: {profile.get('name')} | ID: {profile.get('player_id')}")
@@ -23,17 +23,13 @@ def main():
         else:
             print("Failed to fetch profile.")
 
-        print("\n2. Fetching Most Recent Game...")
-        game = client.get_most_recent_games(test_user)
-        if game:
-            if isinstance(game, list):
-                print(f"Received {len(game)} games. Showing the last one.")
-                game = game[-1]
-
+        print("\n2. Fetching a game by opponent")
+        pgn_text = client.get_latest_game_vs_player(test_user, "Masuk-saja")
+        
+        if pgn_text:
             print("Success! Found game.")
-            print(f"White: {game.get('white', {}).get('username')} ({game.get('white', {}).get('rating')})")
-            print(f"Black: {game.get('black', {}).get('username')} ({game.get('black', {}).get('rating')})")
-            print(f"URL: {game.get('url')}")
+            game = {'pgn': pgn_text, 'url': 'fetched-by-opponent-search'}
+            
             print(f"PGN (first 50 chars): {game.get('pgn', '')[:50]}...")
             
             # Save to DB
@@ -50,11 +46,12 @@ def main():
             print("\n5. Saving Analysis Results...")
             from crud import save_analysis
             save_analysis(db, saved_game.id, analysis_results)
-
-            
         else:
-            print("Failed to fetch recent game.")
+            print("Failed to fetch game.")
             
+    except Exception as e:
+        print(f"Error: {e}")
+
     finally:
         db.close()
 
