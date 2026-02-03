@@ -40,12 +40,20 @@ def main():
             # Run Analysis
             print("\n4. Running Stockfish Analysis...")
             from analyzer import analyze_game
-            analysis_results = analyze_game(game.get('pgn'))
+            analysis_data = analyze_game(game.get('pgn'))
+            
+            moves = analysis_data['moves']
+            summary = analysis_data['summary']
+
+            print("\n--- Game Analysis Summary ---")
+            print(f"White Accuracy: {summary['white']['accuracy']}%")
+            print(f"Black Accuracy: {summary['black']['accuracy']}%")
+            print("-----------------------------")
             
             # Save Analysis
             print("\n5. Saving Analysis Results...")
             from crud import save_analysis
-            save_analysis(db, saved_game.id, analysis_results)
+            save_analysis(db, saved_game.id, moves)
         else:
             print("Failed to fetch game.")
             

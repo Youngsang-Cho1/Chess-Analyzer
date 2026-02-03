@@ -4,6 +4,8 @@ import io
 import json
 from dotenv import load_dotenv
 from stockfish import Stockfish
+import math
+from math import exp
 
 load_dotenv()
 
@@ -32,15 +34,20 @@ def get_opening_details(board):
     
     return eco_data.get(norm_key)
 
-def get_classification(diff):
-    # move quality classification
-    if diff <= 20: 
+def get_win_prob(cp):
+    if cp is None: 
+        return 50.0
+    # sigmoid function for getting the win probability based on the current centipawn score
+    return 50 + 50 * (2 / (1 + math.exp(-0.00368 * cp)) - 1)
+
+def get_classification(win_diff):
+    if win_diff <= 2: 
         return "Excellent"
-    if diff <= 50: 
+    if win_diff <= 5: 
         return "Good"
-    if diff <= 100: 
+    if win_diff <= 10: 
         return "Inaccuracy"
-    if diff <= 200: 
+    if win_diff <= 20: 
         return "Mistake"
 
     return "Blunder"
@@ -50,17 +57,98 @@ PIECE_VALUES = {
     chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0
 }
 
-def get_material_value(board):
-    white, black = 0, 0
-    for piece in board.piece_map().values(): # piece_map() returns a dictionary of pieces on the board
-        val = PIECE_VALUES.get(piece.piece_type, 0) # get the value of the piece
-        if piece.color == chess.WHITE: white += val # if the piece is white, add the value to white
-        else: black += val # if the piece is black, add the value to black
-    return white, black
+def is_sacrifice(board, move):
+    is_sacrifice = False
+    
+    if board.is_capture(move): 
+        # Check for Recapture
+        is_recapture = False
+        if board.move_stack: 
+            last_move = board.peek() 
+            if move.to_square == last_move.to_square:
+                board.pop() 
+                if board.is_capture(last_move): 
+                    is_recapture = True
+                board.push(last_move) 
 
+        # Case A: Active Sacrifice
+        my_piece = board.piece_at(move.from_square)
+        target_piece = board.piece_at(move.to_square)
+        
+        if my_piece and target_piece:
+            val_diff = PIECE_VALUES[my_piece.piece_type] - PIECE_VALUES[target_piece.piece_type]
+            
+            if board.is_attacked_by(not board.turn, move.to_square):
+                if is_recapture:
+                    threats = board.attackers(not board.turn, move.to_square)
+                    min_threat_val = 100
+                    for square in threats:
+                        tp = board.piece_at(square)
+                        if tp:
+                            min_threat_val = min(min_threat_val, PIECE_VALUES[tp.piece_type])
+                    
+                    if min_threat_val < PIECE_VALUES[my_piece.piece_type]:
+                        is_sacrifice = True
+                else:
+                    if val_diff >= 2:
+                        is_sacrifice = True
+                        
+    else:
+        # Case B: Passive Sacrifice
+        if board.is_attacked_by(not board.turn, move.to_square):
+            my_piece = board.piece_at(move.from_square)
+            threats = board.attackers(not board.turn, move.to_square)
+            
+            min_threat_val = 100
+            for square in threats:
+                threat_piece = board.piece_at(square)
+                min_threat_val = min(min_threat_val, PIECE_VALUES[threat_piece.piece_type])
+            
+            if PIECE_VALUES[my_piece.piece_type] - min_threat_val >= 2:
+                is_sacrifice = True
+
+    return is_sacrifice
+
+
+def get_score_val(move_data):
+    # Handle Stockfish get_evaluation() format {'type': 'cp'/'mate', 'value': ...}
+    if 'type' in move_data:
+        if move_data['type'] == 'mate':
+            mate_in = move_data['value']
+            return (20000 - abs(mate_in) * 10) * (1 if mate_in > 0 else -1)
+        return move_data['value']
+        
+    # Handle Stockfish get_top_moves() format {'Mate': ..., 'Centipawn': ...}
+    if move_data.get('Mate') is not None:
+        mate_in = move_data['Mate']
+        return (20000 - abs(mate_in) * 10) * (1 if mate_in > 0 else -1)
+    return move_data.get('Centipawn', 0)
+
+def calculate_stats(moves):
+    if not moves:
+        return {"accuracy": 0, "classification_counts": {}}
+    
+    avg_accuracy = sum(m['accuracy'] for m in moves) / len(moves)
+    
+    counts = {
+        "Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0,
+        "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0
+    }
+    
+    for m in moves:
+        cls = m.get('classification', 'Normal')
+        if cls in counts:
+            counts[cls] += 1
+    
+    return {
+        "accuracy": round(avg_accuracy, 1),
+        "classification_counts": counts
+    }
+
+# Main Analysis Logic
 def analyze_game(pgn_string: str):
     # Optimized for M3 Chip (Threads=6, Hash=256)
-    engine = Stockfish(path=stockfish_path, depth=18, parameters={"Threads": 6, "Hash": 256})
+    engine = Stockfish(path=stockfish_path, depth=18, parameters={"Threads": 4, "Hash": 256})
     
     pgn_io = io.StringIO(pgn_string)
     game = chess.pgn.read_game(pgn_io)
@@ -69,6 +157,9 @@ def analyze_game(pgn_string: str):
     analysis_results = []
     prev_score = 0
     current_opening = "Opening Move"
+
+    all_win_percentages = []
+    all_accuracies = []
     
     print("--- Analysis Start ---")
 
@@ -78,84 +169,15 @@ def analyze_game(pgn_string: str):
         is_white = board.turn
         move_uci = move.uci()
         
-        # 1. Checking Sacrifice
-        # Check for Active Sacrifice (Brilliant candidate) before push
-        is_sacrifice = False
-        
-        if board.is_capture(move): 
-            # Check for Recapture (Opponent captured, I take back on same square)
-            is_recapture = False
-            if board.move_stack: # if previous move exists
-                last_move = board.peek() # get previous move
-                # If landing on square opponent just moved to, check if it was a capture
-                if move.to_square == last_move.to_square:
-                    board.pop() # remove last move
-                    if board.is_capture(last_move): # if last move was a capture
-                        is_recapture = True
-                    board.push(last_move) # add last move back
-
-            # Case A: Active Sacrifice
-            my_piece = board.piece_at(move.from_square)
-            target_piece = board.piece_at(move.to_square)
-            
-            if my_piece and target_piece:
-                val_diff = PIECE_VALUES[my_piece.piece_type] - PIECE_VALUES[target_piece.piece_type]
-                
-                if board.is_attacked_by(not board.turn, move.to_square):
-                    is_real_sacrifice = False
-                    
-                    if is_recapture:
-                        # Recapture: Only a sacrifice if "Attacked by Cheaper Piece"
-                        # e.g. Sac when Knight(3) recaptures Pawn(1), but Pawn(1) defends it
-                        # e.g. Not a sac when Knight(3) recaptures Pawn(1), but Queen(9) defends it
-    
-                        threats = board.attackers(not board.turn, move.to_square) # all squares with defenders
-                        min_threat_val = 100
-                        for square in threats:
-                            tp = board.piece_at(square)
-                            if tp:
-                                min_threat_val = min(min_threat_val, PIECE_VALUES[tp.piece_type])
-                        
-                        if min_threat_val < PIECE_VALUES[my_piece.piece_type]:
-                            is_sacrifice = True
-                    else:
-                        # Initiative: Standard threshold (2 pts)
-                        if val_diff >= 2:
-                            is_sacrifice = True
-                            
-        else:
-            # Case B: Passive Sacrifice (Move into danger w/o capturing)
-            if board.is_attacked_by(not board.turn, move.to_square):
-                my_piece = board.piece_at(move.from_square)
-                threats = board.attackers(not board.turn, move.to_square)
-                
-                # Find lowest value threat
-                min_threat_val = 100
-                for square in threats:
-                    threat_piece = board.piece_at(square)
-                    min_threat_val = min(min_threat_val, PIECE_VALUES[threat_piece.piece_type])
-                
-                if PIECE_VALUES[my_piece.piece_type] - min_threat_val >= 2:
-                    is_sacrifice = True
-                    
-                    
-
         board.push(move)
         opening_info = get_opening_details(board)
         if opening_info:
             current_opening = opening_info.get('name', current_opening)
         
-        # 2. Get Top Moves (Best & Second Best)
+        # 2. Get Top Moves
         board.pop()
         engine.set_fen_position(board.fen())
         
-        def get_score_val(move_data):
-            if move_data.get('Mate') is not None:
-                mate_in = move_data['Mate']
-                return (20000 - abs(mate_in) * 10) * (1 if mate_in > 0 else -1)
-            return move_data.get('Centipawn', 0)
-
-        # Get top 2 moves
         top_moves = engine.get_top_moves(2)
         best_move = top_moves[0]['Move']
         best_score = get_score_val(top_moves[0])
@@ -164,56 +186,68 @@ def analyze_game(pgn_string: str):
         if len(top_moves) > 1:
             second_score = get_score_val(top_moves[1])
 
+        # Check Sacrifice (Must be done while board is popped / before move is pushed)
+        is_sac = is_sacrifice(board, move)
+
         board.push(move) 
         
         # 3. Evaluate Current Position
         engine.set_fen_position(board.fen())
         eval_data = engine.get_evaluation()
         
-        if eval_data['type'] == 'mate':
-            mate_in = eval_data['value']
-            score_val = (20000 - abs(mate_in) * 10) * (1 if mate_in > 0 else -1)
-        else:
-            score_val = eval_data['value']
+        score_val = get_score_val(eval_data)
 
         curr_score_white = score_val
         
-        # Normalize current evaluation
-        curr_score = score_val if is_white else -score_val # +: white, -: black advantage
-        best_score_normalized = best_score if is_white else -best_score
-        second_score_normalized = second_score if is_white else -second_score if second_score is not None else None
+        # Convert to Win Probability (0-100)
+        my_cp = curr_score_white if is_white else -curr_score_white
+        best_cp = best_score if is_white else -best_score
+        second_cp = second_score if is_white else -second_score if second_score is not None else None
+        
+        curr_win_prob = get_win_prob(my_cp)
+        best_win_prob = get_win_prob(best_cp)
         
         # 4. Classify Move
+        win_diff = best_win_prob - curr_win_prob
+        if win_diff < 0: win_diff = 0
+        
         classification = "Normal"
         
         if move_uci == best_move:
             classification = "Best"
-            diff = 0
             
-            # Great logic only for Best moves
-            if second_score_normalized is not None:
-                gap = best_score_normalized - second_score_normalized
-
-                # Gap > 100 & not already winning massively
-                if gap > 100 and -200 < curr_score < 500:
-                    classification = "Great"
-
+            # Great Move: Best Move + large gap to 2nd best
+            if second_cp is not None:
+                second_win_prob = get_win_prob(second_cp)
+                
+                # Gap > 20% and not already winning massively
+                if (best_win_prob - second_win_prob) > 20 and 10 < curr_win_prob < 90:
+                     classification = "Great"
         else:
-            # Calculate Centipawn Loss
-            if is_white: 
-                diff = prev_score - curr_score_white 
-            else:        
-                diff = curr_score_white - prev_score 
-            
-            if diff < 0: 
-                diff = 0
-
-            classification = get_classification(diff)
-
-        # [Global Check] Brilliant Move Override
-        # Sacrifice + Sound Position + (Best or Excellent/Great i.e. diff <= 30)
-        if is_sacrifice and diff <= 30 and curr_score > -100:
+            classification = get_classification(win_diff)
+        
+        # Brilliant Move Override
+        # (Sacrifice) and (Win Prob About the Same as Best Move) and (Not Significantly Behind)
+        if is_sac and win_diff <= 5 and curr_win_prob > 20:
              classification = "Brilliant"
+
+        # Miss (Winning -> Equal/Lost)
+        # Prev Win% > 75% -> Curr Win% < 60%
+        prev_cp_pers = prev_score if is_white else -prev_score
+        prev_win_prob = get_win_prob(prev_cp_pers)
+        
+        if prev_win_prob > 75 and curr_win_prob < 60:
+            classification = "Miss"
+
+        # 5. CP Loss Calculation
+        cp_loss = best_cp - my_cp
+        if cp_loss < 0:
+            cp_loss = 0
+
+        # 6. Accuracy Calculation 
+        move_accuracy = 103.1668 * exp(-0.04354 * win_diff) - 3.1669
+        move_accuracy = max(0, min(100, move_accuracy))
+
 
         result = {
             "move_number": (i // 2) + 1,
@@ -221,12 +255,34 @@ def analyze_game(pgn_string: str):
             "score": curr_score_white,
             "classification": classification,
             "best_move": best_move,
-            "opening": current_opening
+            "opening": current_opening,
+            "accuracy": round(move_accuracy, 1),
+            "win_chance": round(curr_win_prob, 1),
+            "cp_loss": cp_loss,
+            "win_percent_before": round(prev_win_prob, 1),
+            "win_percent_after": round(curr_win_prob, 1)
         }
         analysis_results.append(result)
+        all_win_percentages.append(curr_win_prob)
+    
+        # Calculate White's Win Probability for stable logging
+        white_win_prob = get_win_prob(curr_score_white)
         
+        print(f"Move: {move_uci:<5} | Class: {classification:<10} | Acc: {result['accuracy']:>5.1f}% | Eval: {curr_score_white:>+5} (White Win%: {white_win_prob:.1f}%) | Opening: {current_opening}") 
+
         prev_score = curr_score_white
         
-        print(f"Move: {move_uci}, Class: {classification}, Score: {curr_score_white}, Opening: {current_opening}")
+    # Calculate Game Summary
+    white_moves = [res for idx, res in enumerate(analysis_results) if idx % 2 == 0]
+    black_moves = [res for idx, res in enumerate(analysis_results) if idx % 2 == 1]
 
-    return analysis_results
+    summary = {
+        "white": calculate_stats(white_moves),
+        "black": calculate_stats(black_moves)
+    }
+
+    return {
+        "moves": analysis_results,
+        "summary": summary
+    }
+
