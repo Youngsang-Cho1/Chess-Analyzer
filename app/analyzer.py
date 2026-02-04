@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from stockfish import Stockfish
 import math
 from math import exp
+import statistics
 
 load_dotenv()
 
@@ -40,16 +41,16 @@ def get_win_prob(cp):
     # sigmoid function for getting the win probability based on the current centipawn score
     return 50 + 50 * (2 / (1 + math.exp(-0.00368 * cp)) - 1)
 
-def get_classification(win_diff):
-    if win_diff <= 2: 
+def get_classification(cp_loss):
+    if cp_loss <= 20:
         return "Excellent"
-    if win_diff <= 5: 
+    if cp_loss <= 50:
         return "Good"
-    if win_diff <= 10: 
+    if cp_loss <= 100:
         return "Inaccuracy"
-    if win_diff <= 20: 
+    if cp_loss <= 200:
         return "Mistake"
-
+    
     return "Blunder"
 
 PIECE_VALUES = {
@@ -76,19 +77,30 @@ def is_sacrifice(board, move):
         target_piece = board.piece_at(move.to_square)
         
         if my_piece and target_piece:
-            val_diff = PIECE_VALUES[my_piece.piece_type] - PIECE_VALUES[target_piece.piece_type]
+            my_val = PIECE_VALUES[my_piece.piece_type]
+            target_val = PIECE_VALUES[target_piece.piece_type]
+            val_diff = my_val - target_val
             
             if board.is_attacked_by(not board.turn, move.to_square):
                 if is_recapture:
-                    threats = board.attackers(not board.turn, move.to_square)
-                    min_threat_val = 100
-                    for square in threats:
-                        tp = board.piece_at(square)
-                        if tp:
-                            min_threat_val = min(min_threat_val, PIECE_VALUES[tp.piece_type])
-                    
-                    if min_threat_val < PIECE_VALUES[my_piece.piece_type]:
-                        is_sacrifice = True
+                    # Equal trade (Rook x Rook)
+                    if my_val == target_val:
+                        is_sacrifice = False
+                    # Winning trade (Pawn x Rook)
+                    elif my_val < target_val:
+                        is_sacrifice = False
+                    # Losing trade (Rook x Pawn)
+                    else:
+                        threats = board.attackers(not board.turn, move.to_square)
+                        min_threat_val = 100
+                        for square in threats:
+                            tp = board.piece_at(square)
+                            if tp:
+                                min_threat_val = min(min_threat_val, PIECE_VALUES[tp.piece_type])
+                        
+                        # Threatened by smaller piece : Sacrifice
+                        if min_threat_val < my_val and min_threat_val < 100:
+                            is_sacrifice = True
                 else:
                     if val_diff >= 2:
                         is_sacrifice = True
@@ -128,8 +140,27 @@ def calculate_stats(moves):
     if not moves:
         return {"accuracy": 0, "classification_counts": {}}
     
-    avg_accuracy = sum(m['accuracy'] for m in moves) / len(moves)
+    # Extract win percentages
+    win_percents = [m['win_percent_before'] for m in moves]
+    win_percents.append(moves[-1]['win_percent_after'])
     
+    # Extract accuracies
+    accuracies = [m['accuracy'] for m in moves]
+    
+    # Calculate volatility weights (higher std dev = more critical position)
+    window_size = get_window_size(len(moves))
+    weights = calculate_volatility_weights(win_percents, window_size)
+    
+    # Weighted mean
+    weighted_avg = weighted_mean(accuracies, weights)
+    
+    # Harmonic mean
+    harmonic_avg = harmonic_mean(accuracies)
+    
+    # Final accuracy: average of both
+    lichess_accuracy = (weighted_avg + harmonic_avg) / 2
+    
+    # Count move classifications
     counts = {
         "Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0,
         "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0
@@ -141,9 +172,42 @@ def calculate_stats(moves):
             counts[cls] += 1
     
     return {
-        "accuracy": round(avg_accuracy, 1),
+        "accuracy": round(lichess_accuracy, 1),
         "classification_counts": counts
     }
+
+# Accuracy Logics borrowed from Lichess
+def get_window_size(num_moves):
+    window_size = max(2, min(8, num_moves // 10))
+    return window_size
+
+def calculate_volatility_weights(win_percents, window_size):
+    weights = []
+    # Ensure window_size doesn't exceed list length
+    actual_window_size = min(window_size, len(win_percents))
+    for i in range(len(win_percents) - actual_window_size + 1):
+        window = win_percents[i:i + actual_window_size]
+        std_dev = statistics.stdev(window) if len(window) > 1 else 0.5
+        weight = max(0.5, min(12, std_dev))
+        weights.append(weight)
+    return weights
+
+def weighted_mean(accuracies, weights):
+    # Ensure lengths match (weights might be 1 longer due to win_percents)
+    min_len = min(len(accuracies), len(weights))
+    weighted_sum = sum(accuracies[i] * weights[i] for i in range(min_len))
+    total_weight = sum(weights[:min_len])
+    
+    if total_weight:
+        return weighted_sum / total_weight
+    return 0
+
+def harmonic_mean(accuracies):
+    safe_accuracies = [max(0.1, acc) for acc in accuracies]
+    reciprocal_sum = sum(1/acc for acc in safe_accuracies)
+    if reciprocal_sum > 0:
+        return len(safe_accuracies) / reciprocal_sum
+    return 0
 
 # Main Analysis Logic
 def analyze_game(pgn_string: str):
@@ -209,8 +273,12 @@ def analyze_game(pgn_string: str):
         
         # 4. Classify Move
         win_diff = best_win_prob - curr_win_prob
-        if win_diff < 0: win_diff = 0
+        if win_diff < 0: 
+            win_diff = 0
         
+        cp_loss = best_cp - my_cp
+        if cp_loss < 0:
+            cp_loss = 0
         classification = "Normal"
         
         if move_uci == best_move:
@@ -218,33 +286,28 @@ def analyze_game(pgn_string: str):
             
             # Great Move: Best Move + large gap to 2nd best
             if second_cp is not None:
-                second_win_prob = get_win_prob(second_cp)
-                
-                # Gap > 20% and not already winning massively
-                if (best_win_prob - second_win_prob) > 20 and 10 < curr_win_prob < 90:
+                second_cp_loss = abs(second_cp - best_cp)
+                # 2nd best is much worse (100cp+) and position is balanced
+                if second_cp_loss >= 100 and -500 < my_cp < 500:
                      classification = "Great"
         else:
-            classification = get_classification(win_diff)
+            classification = get_classification(cp_loss)
         
-        # Brilliant Move Override
-        # (Sacrifice) and (Win Prob About the Same as Best Move) and (Not Significantly Behind)
-        if is_sac and win_diff <= 5 and curr_win_prob > 20:
+        # Brilliant: Sacrifice that's nearly optimal (≤25cp loss, not losing)
+        if is_sac:
+            print(f"debug: move={move_uci}, is_sac={is_sac}, cp_loss={cp_loss:.1f}, my_cp={my_cp:.1f}, is_white={is_white}")
+        if is_sac and cp_loss <= 25 and my_cp > -300:
              classification = "Brilliant"
 
-        # Miss (Winning -> Equal/Lost)
-        # Prev Win% > 75% -> Curr Win% < 60%
         prev_cp_pers = prev_score if is_white else -prev_score
         prev_win_prob = get_win_prob(prev_cp_pers)
-        
-        if prev_win_prob > 75 and curr_win_prob < 60:
+
+        # Miss: Big mistake (200cp+) in winning position (200cp+)
+        if (prev_cp_pers > 200 and cp_loss > 200 and classification not in ["Best", "Great", "Brilliant"]):
             classification = "Miss"
+        
 
-        # 5. CP Loss Calculation
-        cp_loss = best_cp - my_cp
-        if cp_loss < 0:
-            cp_loss = 0
-
-        # 6. Accuracy Calculation 
+        # 5. Accuracy Calculation 
         move_accuracy = 103.1668 * exp(-0.04354 * win_diff) - 3.1669
         move_accuracy = max(0, min(100, move_accuracy))
 
@@ -279,7 +342,7 @@ def analyze_game(pgn_string: str):
     summary = {
         "white": calculate_stats(white_moves),
         "black": calculate_stats(black_moves)
-    }
+    } # Gives summarized stats for both players
 
     return {
         "moves": analysis_results,
