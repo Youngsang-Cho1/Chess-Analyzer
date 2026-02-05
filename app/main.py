@@ -24,7 +24,7 @@ def main():
             print("Failed to fetch profile.")
 
         print("\n2. Fetching a game by opponent")
-        pgn_text = client.get_latest_game_vs_player(test_user, "Masuk-saja")
+        pgn_text = client.get_latest_game_vs_player(test_user, "masuk-saja")
         
         if pgn_text:
             print("Success! Found game.")

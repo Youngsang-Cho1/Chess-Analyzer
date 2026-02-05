@@ -4,7 +4,6 @@ import io
 import json
 from dotenv import load_dotenv
 from stockfish import Stockfish
-import math
 from math import exp
 import statistics
 
@@ -39,19 +38,20 @@ def get_win_prob(cp):
     if cp is None: 
         return 50.0
     # sigmoid function for getting the win probability based on the current centipawn score
-    return 50 + 50 * (2 / (1 + math.exp(-0.00368 * cp)) - 1)
+    return 50 + 50 * (2 / (1 + exp(-0.00368 * cp)) - 1)
 
-def get_classification(cp_loss):
-    if cp_loss <= 20:
+def get_classification(win_diff):
+    """Chess.com Expected Points Model (win% loss based)"""
+    if win_diff <= 2:    
         return "Excellent"
-    if cp_loss <= 50:
+    if win_diff <= 5:    
         return "Good"
-    if cp_loss <= 100:
+    if win_diff <= 10:   
         return "Inaccuracy"
-    if cp_loss <= 200:
+    if win_diff <= 20:   
         return "Mistake"
     
-    return "Blunder"
+    return "Blunder"     
 
 PIECE_VALUES = {
     chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
@@ -231,7 +231,8 @@ def analyze_game(pgn_string: str):
         if i // 2 >= 12 and current_opening == "Opening Move":
             current_opening = "No Opening detected"
         is_white = board.turn
-        move_uci = move.uci()
+        move_uci = move.uci() # format: e2e4, e7e5, ...
+        move_san = board.san(move) # format: e4, e5, ...
         
         board.push(move)
         opening_info = get_opening_details(board)
@@ -247,6 +248,7 @@ def analyze_game(pgn_string: str):
         best_score = get_score_val(top_moves[0])
 
         second_score = None
+
         if len(top_moves) > 1:
             second_score = get_score_val(top_moves[1])
 
@@ -282,7 +284,10 @@ def analyze_game(pgn_string: str):
         classification = "Normal"
         
         if move_uci == best_move:
-            classification = "Best"
+            if len(top_moves) == 1:
+                classification = "Forced" # only available move
+            else:
+                classification = "Best"
             
             # Great Move: Best Move + large gap to 2nd best
             if second_cp is not None:
@@ -291,21 +296,22 @@ def analyze_game(pgn_string: str):
                 if second_cp_loss >= 100 and -500 < my_cp < 500:
                      classification = "Great"
         else:
-            classification = get_classification(cp_loss)
+            classification = get_classification(win_diff)
+            
+            prev_cp_pers = prev_score if is_white else -prev_score
+            prev_win_prob = get_win_prob(prev_cp_pers)
+            
+            # Miss: Fail to capitalize on advantage (winning → equal/losing)
+            if prev_win_prob > 70 and win_diff > 15:
+                classification = "Miss"
         
+            
         # Brilliant: Sacrifice that's nearly optimal (≤25cp loss, not losing)
         if is_sac:
             print(f"debug: move={move_uci}, is_sac={is_sac}, cp_loss={cp_loss:.1f}, my_cp={my_cp:.1f}, is_white={is_white}")
         if is_sac and cp_loss <= 25 and my_cp > -300:
              classification = "Brilliant"
 
-        prev_cp_pers = prev_score if is_white else -prev_score
-        prev_win_prob = get_win_prob(prev_cp_pers)
-
-        # Miss: Big mistake (200cp+) in winning position (200cp+)
-        if (prev_cp_pers > 200 and cp_loss > 200 and classification not in ["Best", "Great", "Brilliant"]):
-            classification = "Miss"
-        
 
         # 5. Accuracy Calculation 
         move_accuracy = 103.1668 * exp(-0.04354 * win_diff) - 3.1669
@@ -315,6 +321,7 @@ def analyze_game(pgn_string: str):
         result = {
             "move_number": (i // 2) + 1,
             "move_uci": move_uci,
+            "move_san": move_san,
             "score": curr_score_white,
             "classification": classification,
             "best_move": best_move,
@@ -331,7 +338,7 @@ def analyze_game(pgn_string: str):
         # Calculate White's Win Probability for stable logging
         white_win_prob = get_win_prob(curr_score_white)
         
-        print(f"Move: {move_uci:<5} | Class: {classification:<10} | Acc: {result['accuracy']:>5.1f}% | Eval: {curr_score_white:>+5} (White Win%: {white_win_prob:.1f}%) | Opening: {current_opening}") 
+        print(f"Move: {move_san:<10} | Class: {classification:<10} | Acc: {result['accuracy']:>5.1f}% | Eval: {curr_score_white:>+5} (White Win%: {white_win_prob:.1f}%) | Opening: {current_opening}") 
 
         prev_score = curr_score_white
         
