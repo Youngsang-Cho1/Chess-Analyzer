@@ -163,7 +163,7 @@ def calculate_stats(moves):
     # Count move classifications
     counts = {
         "Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0,
-        "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0
+        "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0
     }
     
     for m in moves:
@@ -269,7 +269,9 @@ def analyze_game(pgn_string: str):
         my_cp = curr_score_white if is_white else -curr_score_white
         best_cp = best_score if is_white else -best_score
         second_cp = second_score if is_white else -second_score if second_score is not None else None
-        
+        prev_cp_pers = prev_score if is_white else -prev_score
+
+        prev_win_prob = get_win_prob(prev_cp_pers)
         curr_win_prob = get_win_prob(my_cp)
         best_win_prob = get_win_prob(best_cp)
         
@@ -281,6 +283,11 @@ def analyze_game(pgn_string: str):
         cp_loss = best_cp - my_cp
         if cp_loss < 0:
             cp_loss = 0
+            
+        # Calculate Previous Win Probability
+        prev_cp_pers = prev_score if is_white else -prev_score
+        prev_win_prob = get_win_prob(prev_cp_pers)
+        
         classification = "Normal"
         
         if move_uci == best_move:
@@ -298,9 +305,6 @@ def analyze_game(pgn_string: str):
         else:
             classification = get_classification(win_diff)
             
-            prev_cp_pers = prev_score if is_white else -prev_score
-            prev_win_prob = get_win_prob(prev_cp_pers)
-            
             # Miss: Fail to capitalize on advantage (winning → equal/losing)
             if prev_win_prob > 70 and win_diff > 15:
                 classification = "Miss"
@@ -309,7 +313,7 @@ def analyze_game(pgn_string: str):
         # Brilliant: Sacrifice that's nearly optimal (≤25cp loss, not losing)
         if is_sac:
             print(f"debug: move={move_uci}, is_sac={is_sac}, cp_loss={cp_loss:.1f}, my_cp={my_cp:.1f}, is_white={is_white}")
-        if is_sac and cp_loss <= 25 and my_cp > -300:
+        if is_sac and cp_loss <= 50 and my_cp > -300:
              classification = "Brilliant"
 
 

@@ -40,7 +40,7 @@ class ChessComClient:
             print(f"Error fetching {year_month} games for {username}: {e}")
             return None
 
-    def get_most_recent_games(self, username: str):
+    def get_recent_games(self, username: str, limit: int = 10):
         archives_url = f"{self.base_url}/player/{username}/games/archives"
         try:
             res = requests.get(archives_url, headers = self.headers)
@@ -58,7 +58,8 @@ class ChessComClient:
             if not games:
                 return None
             
-            return games
+            games.reverse()
+            return games[:limit]
 
         except requests.exceptions.RequestException as e:
             print(f"Error fetching games for {username}: {e}")

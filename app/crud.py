@@ -2,13 +2,14 @@ from sqlalchemy.orm import Session
 from models import Game, MoveAnalysis
 from sqlalchemy.dialects.postgresql import insert
 
-def save_game(db: Session, game_data: dict):
-    """
-    Saves a game to the database. Skips if the game URL already exists.
-    """
+def save_game(db: Session, game_data: dict, summary: dict = None):
     # Extract relevant fields from nested JSON structure
     white_info = game_data.get('white', {})
     black_info = game_data.get('black', {})
+    
+    # Extract stats if summary is provided
+    white_stats = summary.get('white', {}) if summary else {}
+    black_stats = summary.get('black', {}) if summary else {}
     
     new_game = Game(
         url=game_data.get('url'),
@@ -23,16 +24,21 @@ def save_game(db: Session, game_data: dict):
         white_username=white_info.get('username'),
         white_rating=white_info.get('rating'),
         white_result=white_info.get('result'),
+        white_accuracy=white_stats.get('accuracy'),
+        white_move_counts=white_stats.get('classification_counts', {}),
         
         black_username=black_info.get('username'),
         black_rating=black_info.get('rating'),
         black_result=black_info.get('result'),
+        black_accuracy=black_stats.get('accuracy'),
+        black_move_counts=black_stats.get('classification_counts', {}),
     )
 
     # Check if exists
     existing_game = db.query(Game).filter(Game.url == new_game.url).first()
     if not existing_game:
         db.add(new_game)
+        # Commit to generate ID
         db.commit()
         db.refresh(new_game)
         print(f"Game saved: {new_game.url}")
@@ -42,9 +48,6 @@ def save_game(db: Session, game_data: dict):
         return existing_game
 
 def save_analysis(db: Session, game_id: int, analysis_results: list):
-    """
-    Saves analysis results to the database.
-    """
     # First, delete existing analysis for this game to avoid duplicates if re-analyzing
     db.query(MoveAnalysis).filter(MoveAnalysis.game_id == game_id).delete()
     

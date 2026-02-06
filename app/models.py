@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, BigInteger, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, BigInteger, ForeignKey, Float, JSON
 from database import Base
 
 class Game(Base):
@@ -18,11 +18,15 @@ class Game(Base):
     white_username = Column(String)
     white_rating = Column(Integer)
     white_result = Column(String)
+    white_accuracy = Column(Float)
+    white_move_counts = Column(JSON) # e.g. {"Blunder": 2, "Best": 15, "Brilliant": 1}
 
     # Black info
     black_username = Column(String)
     black_rating = Column(Integer)
     black_result = Column(String)
+    black_accuracy = Column(Float)
+    black_move_counts = Column(JSON)
 
 class MoveAnalysis(Base):
     __tablename__ = "move_analysis"
@@ -35,4 +39,3 @@ class MoveAnalysis(Base):
     classification = Column(String) # Best, Good, Mistake, Blunder, etc.
     best_move = Column(String)
     opening = Column(String)
-
