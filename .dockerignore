@@ -4,14 +4,14 @@ __pycache__
 *.pyd
 .Python
 env/
-venv/
 .venv
 .git
 .gitignore
 .dockerignore
 Dockerfile
 docker-compose.yml
-.env
-*.md
-.vscode
+# AI / Large Files
+*.gguf
+*.bin
+.cache/
 .idea

@@ -212,7 +212,7 @@ def harmonic_mean(accuracies):
 # Main Analysis Logic
 def analyze_game(pgn_string: str):
     # Optimized for M3 Chip (Threads=6, Hash=256)
-    engine = Stockfish(path=stockfish_path, depth=18, parameters={"Threads": 4, "Hash": 256})
+    engine = Stockfish(path=stockfish_path, depth=15, parameters={"Threads": 4, "Hash": 256})
     
     pgn_io = io.StringIO(pgn_string)
     game = chess.pgn.read_game(pgn_io)
@@ -353,6 +353,7 @@ def analyze_game(pgn_string: str):
 
     return {
         "moves": analysis_results,
-        "summary": summary
+        "summary": summary,
+        "headers": dict(game.headers)
     }
 

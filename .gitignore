@@ -18,3 +18,9 @@ env/
 # Docker
 postgres_data/
 *.bin
+
+# General AI / Large Files
+*.gguf
+*.bin
+.cache/
+__pycache__/

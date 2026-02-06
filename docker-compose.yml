@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   chess-analyzer:
     build: .
@@ -13,6 +11,7 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
+      - GROQ_API_KEY=${GROQ_API_KEY}
     command: python main.py
     # command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 

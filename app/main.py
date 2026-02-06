@@ -2,6 +2,9 @@ from chesscom import ChessComClient
 from database import init_db, SessionLocal
 from crud import save_game
 import json
+import os
+from llm_reviewer import ChessReviewer
+from analyzer import analyze_game
 
 def main():
     # Initialize DB tables
@@ -28,32 +31,80 @@ def main():
         
         if pgn_text:
             print("Success! Found game.")
-            game = {'pgn': pgn_text, 'url': 'fetched-by-opponent-search'}
             
-            print(f"PGN (first 50 chars): {game.get('pgn', '')[:50]}...")
+            # 3. Analyze Game FIRST to extract metadata
+            print("\n3. Running Stockfish Analysis...")
+            analysis_data = analyze_game(pgn_text)
             
-            # Save to DB
-            print("\n3. Saving to Database...")
-            saved_game = save_game(db, game)
+            moves = analysis_data['moves'] 
+            summary = analysis_data['summary'] 
+            headers = analysis_data.get('headers', {})
+
+            # 4. Construct Full Game Data
+            game_data = {
+                'pgn': pgn_text,
+                'url': headers.get('Link', 'fetched-by-opponent-search'), # Use Link header if available
+                'white': {
+                    'username': headers.get('White', 'Unknown'),
+                    'rating': int(headers.get('WhiteElo', 0)),
+                    'result': headers.get('Result', '').split('-')[0] if '-' in headers.get('Result', '') else ''
+                },
+                'black': {
+                    'username': headers.get('Black', 'Unknown'),
+                    'rating': int(headers.get('BlackElo', 0)),
+                    'result': headers.get('Result', '').split('-')[1] if '-' in headers.get('Result', '') else ''
+                },
+                'time_control': headers.get('TimeControl', ''),
+                'end_time': 0, # Timestamp hard to parse from headers reliably without datetime lib
+                'rated': headers.get('Event', '').lower() != 'casual',
+                'rules': 'chess'
+            }
+            
+            # 5. Save to Database (with full metadata)
+            print("\n4. Saving to Database...")
+            saved_game = save_game(db, game_data)
             print(f"Game saved with ID: {saved_game.id}")
             
-            # Run Analysis
-            print("\n4. Running Stockfish Analysis...")
-            from analyzer import analyze_game
-            analysis_data = analyze_game(game.get('pgn'))
-            
-            moves = analysis_data['moves']
-            summary = analysis_data['summary']
+            # 6. Save Analysis Results
+            print("   Saving Analysis Results...")
+            from crud import save_analysis
+            save_analysis(db, saved_game.id, moves)
 
+            # 7. Print Summary
             print("\n--- Game Analysis Summary ---")
             print(f"White Accuracy: {summary['white']['accuracy']}%")
             print(f"Black Accuracy: {summary['black']['accuracy']}%")
             print("-----------------------------")
-            
-            # Save Analysis
-            print("\n5. Saving Analysis Results...")
-            from crud import save_analysis
-            save_analysis(db, saved_game.id, moves)
+
+            # 8. LLM Review (Groq)
+            if os.getenv("GROQ_API_KEY"):
+                print("\n6. Generating AI Review (Groq)...")
+                try:
+                    # Determine player color
+                    white_player = headers.get('White', '')
+                    is_white = test_user.lower() in white_player.lower()
+                    player_color = "white" if is_white else "black"
+                    
+                    # Prepare review data
+                    stats = summary[player_color]
+                    
+                    # Create reviewer and generate
+                    reviewer = ChessReviewer()
+                    review = reviewer.review_game({
+                        "player": test_user,
+                        "accuracy": stats['accuracy'],
+                        "blunders": stats['classification_counts'].get('Blunder', 0),
+                        "mistakes": stats['classification_counts'].get('Mistake', 0),
+                        "opening": moves[-1].get('opening', 'Unknown') if moves else "Unknown"
+                    })
+                    
+                    print(f"\n AI Coach Review for {test_user} ({player_color}):")
+                    print(review.content)
+                    
+                except Exception as e:
+                    print(f"Failed to generate AI review: {e}")
+            else:
+                 print("\n Set GROQ_API_KEY in .env to enable AI Game Review")
         else:
             print("Failed to fetch game.")
             
