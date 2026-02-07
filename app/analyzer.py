@@ -92,10 +92,17 @@ def is_sacrifice(board, move):
                     # Losing trade (Rook x Pawn)
                     else:
                         threats = board.attackers(not board.turn, move.to_square)
+                        
+                        # Filter out King if the square is protected (King cannot capture protected piece)
+                        is_protected = board.is_attacked_by(board.turn, move.to_square)
+                        
                         min_threat_val = 100
                         for square in threats:
                             tp = board.piece_at(square)
                             if tp:
+                                # Skip King if the piece is protected
+                                if tp.piece_type == chess.KING and is_protected:
+                                    continue
                                 min_threat_val = min(min_threat_val, PIECE_VALUES[tp.piece_type])
                         
                         # Threatened by smaller piece : Sacrifice
@@ -111,9 +118,15 @@ def is_sacrifice(board, move):
             my_piece = board.piece_at(move.from_square)
             threats = board.attackers(not board.turn, move.to_square)
             
+            # Check if piece is protected
+            is_protected = board.is_attacked_by(board.turn, move.to_square)
+            
             min_threat_val = 100
             for square in threats:
                 threat_piece = board.piece_at(square)
+                # Skip King if protected
+                if threat_piece.piece_type == chess.KING and is_protected:
+                    continue
                 min_threat_val = min(min_threat_val, PIECE_VALUES[threat_piece.piece_type])
             
             if PIECE_VALUES[my_piece.piece_type] - min_threat_val >= 2:
@@ -212,7 +225,7 @@ def harmonic_mean(accuracies):
 # Main Analysis Logic
 def analyze_game(pgn_string: str):
     # Optimized for M3 Chip (Threads=6, Hash=256)
-    engine = Stockfish(path=stockfish_path, depth=15, parameters={"Threads": 4, "Hash": 256})
+    engine = Stockfish(path=stockfish_path, depth=20, parameters={"Threads": 6, "Hash": 256})
     
     pgn_io = io.StringIO(pgn_string)
     game = chess.pgn.read_game(pgn_io)
@@ -306,11 +319,11 @@ def analyze_game(pgn_string: str):
             classification = get_classification(win_diff)
             
             # Miss: Fail to capitalize on advantage (winning → equal/losing)
-            if prev_win_prob > 70 and win_diff > 15:
+            if prev_win_prob > 70 and win_diff > 15 or cp_loss > 1000:
                 classification = "Miss"
         
             
-        # Brilliant: Sacrifice that's nearly optimal (≤25cp loss, not losing)
+        # Brilliant: Sacrifice that's nearly optimal (≤50cp loss, not losing)
         if is_sac:
             print(f"debug: move={move_uci}, is_sac={is_sac}, cp_loss={cp_loss:.1f}, my_cp={my_cp:.1f}, is_white={is_white}")
         if is_sac and cp_loss <= 50 and my_cp > -300:

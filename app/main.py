@@ -98,8 +98,8 @@ def main():
                         "opening": moves[-1].get('opening', 'Unknown') if moves else "Unknown"
                     })
                     
-                    print(f"\n AI Coach Review for {test_user} ({player_color}):")
-                    print(review.content)
+                    print(f"\n 🤖 AI Coach Review for {test_user} ({player_color}):")
+                    print(review)
                     
                 except Exception as e:
                     print(f"Failed to generate AI review: {e}")

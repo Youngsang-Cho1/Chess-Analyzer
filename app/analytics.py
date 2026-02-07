@@ -3,6 +3,7 @@ from database import SessionLocal
 from models import Game
 from sqlalchemy import desc, or_
 import json
+from llm_reviewer import ChessReviewer
 
 def get_player_stats(username: str, limit: int = 20):
     db: Session = SessionLocal()
@@ -93,15 +94,15 @@ def print_report(stats):
         return
 
     print("\n" + "="*40)
-    print(f"CHESS ANALYSIS REPORT: {stats['username']}")
+    print(f" 📊 CHESS ANALYSIS REPORT: {stats['username']}")
     print("="*40)
     
-    print(f"\n Overall Performance ({stats['total_games']} games)")
+    print(f"\n🏆 Overall Performance ({stats['total_games']} games)")
     print(f"   • Win Rate: {stats['win_rate']}% ({stats['record']})")
     print(f"   • Avg Accuracy: {stats['avg_accuracy']}%")
     print(f"   • Play Style: {stats['style']}")
     
-    print("\n Move Quality Breakdown")
+    print("\n🎯 Move Quality Breakdown")
     counts = stats['classifications']
     total_moves = sum(counts.values())
     
@@ -123,6 +124,16 @@ def print_report(stats):
         print(f"   Attention: You are averaging {counts['Blunder']/stats['total_games']:.1f} blunders per game. Focus on hanging pieces.")
     else:
         print("   Solid play! You are keeping blunders low.")
+
+    # LLM Coach Integration
+    print("\n🤖 AI Coach's Feedback")
+    print("-" * 30)
+    try:
+        reviewer = ChessReviewer()
+        feedback = reviewer.review_season(stats)
+        print(feedback)
+    except Exception as e:
+        print(f"   (Coach is currently unavailable: {e})")
         
     print("="*40 + "\n")
 
