@@ -13,6 +13,7 @@ class Game(Base):
     rated = Column(String)
     time_class = Column(String)
     rules = Column(String)
+    opening = Column(String) # Opening used in this game
     
     # White info
     white_username = Column(String)

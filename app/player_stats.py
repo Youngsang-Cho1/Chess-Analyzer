@@ -5,7 +5,7 @@ from sqlalchemy import desc, or_
 import json
 from llm_reviewer import ChessReviewer
 
-def get_player_stats(username: str, limit: int = 20):
+def get_player_stats(username: str, limit):
     db: Session = SessionLocal()
     
     try:
@@ -26,6 +26,8 @@ def get_player_stats(username: str, limit: int = 20):
         draws = 0
         
         accuracies = []
+        history = [] # For storing individual game details
+        
         classifications = {
             "Brilliant": 0, "Great": 0, "Best": 0, 
             "Excellent": 0, "Good": 0, "Inaccuracy": 0, 
@@ -40,17 +42,20 @@ def get_player_stats(username: str, limit: int = 20):
             # 1. Result Stats
             # 1. Result Stats (Stored as '1', '0', '1/2' from PGN split)
             my_result = game.white_result if is_white else game.black_result
+            result_label = "Draw"
             
             if my_result == '1':
                 wins += 1
+                result_label = "Win"
             elif my_result == '0':
                 losses += 1
+                result_label = "Loss"
             else: # '1/2' or others
                 draws += 1
                 
             # 2. Accuracy Stats
             acc = game.white_accuracy if is_white else game.black_accuracy
-            if acc:
+            if acc is not None:
                 accuracies.append(acc)
                 
             # 3. Move Classifications (JSON)
@@ -58,13 +63,23 @@ def get_player_stats(username: str, limit: int = 20):
             if moves:
                 for key, count in moves.items():
                     classifications[key] += count
+
+            # 4. Add to History
+            history.append({
+                "id": game.id,
+                "is_white": is_white,
+                "opponent": game.black_username if is_white else game.white_username,
+                "result": result_label,
+                "accuracy": acc if acc else 0.0,
+                "opening": game.opening if game.opening else "Unknown"
+            })
                         
         avg_accuracy = sum(accuracies) / len(accuracies) if accuracies else 0
         win_rate = (wins / total_games) * 100 if total_games > 0 else 0
         
-        # 4. Style Analysis
+        # 5. Style Analysis
         
-        aggression_score = (classifications["Brilliant"] + classifications["Blunder"]) / total_games
+        aggression_score = (classifications["Brilliant"] * 2 + classifications["Blunder"]) / total_games
         style = "Balanced"
 
         if aggression_score > 1.5 and avg_accuracy < 80:
@@ -83,7 +98,8 @@ def get_player_stats(username: str, limit: int = 20):
             "record": f"{wins}W - {losses}L - {draws}D",
             "avg_accuracy": round(avg_accuracy, 1),
             "classifications": classifications,
-            "style": style
+            "style": style,
+            "history": history # Return full history list
         }
         
     finally:

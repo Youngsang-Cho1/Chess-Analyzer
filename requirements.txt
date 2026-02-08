@@ -14,3 +14,8 @@ langchain-groq==0.0.1
 langchain-community==0.0.13
 
 
+
+# Data & Web
+streamlit==1.31.0
+pandas==2.1.2
+plotly==5.17.0

@@ -1,4 +1,4 @@
-from analyzer import analyze_game
+from game_analysis import analyze_game
 from chesscom import ChessComClient
 from database import SessionLocal
 from models import Game
@@ -55,7 +55,8 @@ def process_user_games(username: str, limit: int = 10):
                 'time_control': headers.get('TimeControl', ''),
                 'end_time': 0, # Timestamp hard to parse from headers reliably without datetime lib
                 'rated': headers.get('Event', '').lower() != 'casual',
-                'rules': 'chess'
+                'rules': 'chess',
+                'opening': analysis.get('detected_opening', headers.get('Opening', 'Unknown'))
             }
 
             saved_game = save_game(db, game_data, summary)

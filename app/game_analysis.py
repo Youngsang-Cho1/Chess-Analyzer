@@ -224,7 +224,6 @@ def harmonic_mean(accuracies):
 
 # Main Analysis Logic
 def analyze_game(pgn_string: str):
-    # Optimized for M3 Chip (Threads=6, Hash=256)
     engine = Stockfish(path=stockfish_path, depth=20, parameters={"Threads": 6, "Hash": 256})
     
     pgn_io = io.StringIO(pgn_string)
@@ -233,7 +232,12 @@ def analyze_game(pgn_string: str):
     
     analysis_results = []
     prev_score = 0
-    current_opening = "Opening Move"
+    
+    # Initialize with PGN Header Opening (Fallback)
+    pgn_opening = game.headers.get("Opening", "Opening Move")
+    if pgn_opening == "?":
+        pgn_opening = "Opening Move"
+    current_opening = pgn_opening
 
     all_win_percentages = []
     all_accuracies = []
@@ -242,7 +246,7 @@ def analyze_game(pgn_string: str):
 
     for i, move in enumerate(game.mainline_moves()):
         if i // 2 >= 12 and current_opening == "Opening Move":
-            current_opening = "No Opening detected"
+             current_opening = "No Opening detected"
         is_white = board.turn
         move_uci = move.uci() # format: e2e4, e7e5, ...
         move_san = board.san(move) # format: e4, e5, ...
@@ -312,15 +316,17 @@ def analyze_game(pgn_string: str):
             # Great Move: Best Move + large gap to 2nd best
             if second_cp is not None:
                 second_cp_loss = abs(second_cp - best_cp)
-                # 2nd best is much worse (100cp+) and position is balanced
-                if second_cp_loss >= 100 and -500 < my_cp < 500:
+                # 2nd best is much worse and position is balanced
+                if second_cp_loss >= 250 and -500 < my_cp < 500:
                      classification = "Great"
         else:
             classification = get_classification(win_diff)
             
             # Miss: Fail to capitalize on advantage (winning → equal/losing)
-            if prev_win_prob > 70 and win_diff > 15 or cp_loss > 1000:
+            if prev_win_prob > 70 and (win_diff > 15 or cp_loss > 300) and classification != "Blunder":
+                # Missed opportunity in a winning position AND not a blunder
                 classification = "Miss"
+
         
             
         # Brilliant: Sacrifice that's nearly optimal (≤50cp loss, not losing)
@@ -371,6 +377,7 @@ def analyze_game(pgn_string: str):
     return {
         "moves": analysis_results,
         "summary": summary,
-        "headers": dict(game.headers)
+        "headers": dict(game.headers),
+        "detected_opening": current_opening if current_opening != "No Opening detected" else "Unknown" 
     }
 

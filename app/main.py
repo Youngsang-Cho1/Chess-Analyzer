@@ -4,7 +4,7 @@ from crud import save_game
 import json
 import os
 from llm_reviewer import ChessReviewer
-from analyzer import analyze_game
+from game_analysis import analyze_game
 
 def main():
     # Initialize DB tables
@@ -57,12 +57,13 @@ def main():
                 'time_control': headers.get('TimeControl', ''),
                 'end_time': 0, # Timestamp hard to parse from headers reliably without datetime lib
                 'rated': headers.get('Event', '').lower() != 'casual',
-                'rules': 'chess'
+                'rules': 'chess',
+                'opening': analysis_data.get('detected_opening', headers.get('Opening', 'Unknown'))
             }
             
             # 5. Save to Database (with full metadata)
             print("\n4. Saving to Database...")
-            saved_game = save_game(db, game_data)
+            saved_game = save_game(db, game_data, summary)
             print(f"Game saved with ID: {saved_game.id}")
             
             # 6. Save Analysis Results

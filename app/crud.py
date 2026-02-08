@@ -20,6 +20,7 @@ def save_game(db: Session, game_data: dict, summary: dict = None):
         rated=str(game_data.get('rated')), # Store as string just in case
         time_class=game_data.get('time_class'),
         rules=game_data.get('rules'),
+        opening=game_data.get('opening'),
         
         white_username=white_info.get('username'),
         white_rating=white_info.get('rating'),
