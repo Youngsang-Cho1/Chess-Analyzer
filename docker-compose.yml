@@ -12,8 +12,8 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - GROQ_API_KEY=${GROQ_API_KEY}
-    command: python main.py
-    # command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    # command: python main.py
+    command: sleep infinity
 
   db:
     image: postgres:15
@@ -33,6 +33,7 @@ services:
     volumes:
       - ./app:/app
     environment:
+      - PYTHONUNBUFFERED=1
       - GROQ_API_KEY=${GROQ_API_KEY}
     command: streamlit run dashboard.py --server.address=0.0.0.0
     depends_on:

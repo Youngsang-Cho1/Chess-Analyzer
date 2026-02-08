@@ -13,6 +13,19 @@ limit = st.sidebar.slider("Number of Games to Analyze", 5, 100, 20)
 if st.sidebar.button("Fetch Data"):
     st.session_state['fetch_trigger'] = time.time()
 
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔄 Update Analysis")
+if st.sidebar.button("Analyze Recent Games"):
+    with st.spinner("Analyzing new games... This may take a few minutes (approx 10-20s per game)."):
+        try:
+            # Import here to avoid circular imports
+            from batch import process_user_games
+            process_user_games(username, limit=10)
+            st.success("Analysis Complete! Please refresh data.")
+            st.session_state['fetch_trigger'] = time.time() 
+        except Exception as e:
+            st.error(f"Analysis Failed: {e}")
+
 if username:
     try:
         stats = get_player_stats(username, limit=limit)
