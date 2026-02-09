@@ -322,12 +322,10 @@ def analyze_game(pgn_string: str):
         else:
             classification = get_classification(win_diff)
             
-            # Miss: Fail to capitalize on advantage (winning → equal/losing)
-            if prev_win_prob > 70 and (win_diff > 15 or cp_loss > 300) and classification != "Blunder":
-                # Missed opportunity in a winning position AND not a blunder
+            # Miss Logic (Based on User Feedback)
+            # 1. Lost Lead: Was winning (>300), now equal/unclear (<100) but not totally lost (>-500)
+            if (best_cp > 300 and my_cp < 100) or (best_cp > 2000 and my_cp < 1000) or (best_cp > 500 and cp_loss > 300 and classification != "Blunder"):
                 classification = "Miss"
-
-        
             
         # Brilliant: Sacrifice that's nearly optimal (≤50cp loss, not losing)
         if is_sac:

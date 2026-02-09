@@ -59,7 +59,7 @@ class ChessComClient:
                 return None
             
             games.reverse()
-            return games[:limit]
+            return games # Return all games, let batch.py handle the limit
 
         except requests.exceptions.RequestException as e:
             print(f"Error fetching games for {username}: {e}")

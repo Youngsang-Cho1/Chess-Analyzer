@@ -5,7 +5,7 @@ from sqlalchemy import desc, or_
 import json
 from llm_reviewer import ChessReviewer
 
-def get_player_stats(username: str, limit):
+def get_player_stats(username: str, limit: int = 50):
     db: Session = SessionLocal()
     
     try:

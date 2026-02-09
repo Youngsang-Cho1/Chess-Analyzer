@@ -9,9 +9,9 @@ def process_user_games(username: str, limit: int = 10):
     client = ChessComClient()
     db = SessionLocal()
     
-    print(f"Fetching data for user: {username} (Limit: {limit})...")
+    print(f"Fetching data for user: {username} (Target: {limit} new games)...")
     
-    games = client.get_recent_games(username, limit=limit)
+    games = client.get_recent_games(username) 
     
     if not games:
         print(f"No games found for {username}")
@@ -23,15 +23,19 @@ def process_user_games(username: str, limit: int = 10):
     
     try:
         for idx, game in enumerate(games):
+            if processed >= limit:
+                print(f"Reached target of {limit} new games.")
+                break
+
             pgn = game.get('pgn')
             url = game.get('url')
 
             if db.query(Game).filter(Game.url == url).first():
-                print(f"Game already exists: {pgn}")
+                print(f"Game already exists: {url}")
                 skipped += 1
                 continue
 
-            print(f"Analyzing game {idx+1}/{len(games)}...")
+            print(f"Analyzing new game {processed+1}/{limit} (Source idx: {idx})...")
 
             analysis = analyze_game(pgn)
 
@@ -69,7 +73,7 @@ def process_user_games(username: str, limit: int = 10):
     finally:
         db.close()
 
-    print(f"Processed {processed} games, skipped {skipped} games.")
+    print(f"Batch Complete: Processed {processed} new games, skipped {skipped} existing games.")
 
 if __name__ == "__main__":
     process_user_games("choys1211", limit=5)

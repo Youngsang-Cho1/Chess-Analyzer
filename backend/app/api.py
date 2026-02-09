@@ -40,5 +40,5 @@ def get_games(username: str):
 
 @app.get('/stats/{username}')
 def get_stats(username: str):
-    stats = get_player_stats(username, limit=5)
+    stats = get_player_stats(username, limit=50)
     return {"stats": stats}

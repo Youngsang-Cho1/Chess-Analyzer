@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --primary: #2563eb;
+  --secondary: #64748b;
+  --accent: #f8fafc;
+  --border: #e2e8f0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Force Light Mode */
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Styles */
+.analysis-page {
+  @apply min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8;
+}
+
+.max-w-container {
+  @apply max-w-7xl mx-auto;
+}
+
+.page-title {
+  @apply text-3xl font-extrabold mb-8 flex items-center gap-3 text-gray-900 tracking-tight;
+}
+
+/* Input & Search */
+.search-container {
+  @apply flex gap-3 mb-8 p-2 bg-white rounded-2xl shadow-sm border border-gray-100 max-w-2xl;
+}
+
+.search-input {
+  @apply flex-1 border-none outline-none p-3 text-gray-700 bg-transparent placeholder-gray-400 focus:ring-0 text-lg;
+}
+
+.search-button {
+  @apply bg-gray-900 text-white px-6 py-2 rounded-xl font-medium hover:bg-black transition-colors shadow-lg shadow-gray-200 active:scale-95 duration-200;
+}
+
+/* Stats Dashboard */
+.stats-grid {
+  @apply grid grid-cols-2 md:grid-cols-4 gap-6 mb-10;
+}
+
+.stat-box {
+  @apply bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center transition-transform hover:-translate-y-1 duration-300;
+}
+
+.stat-label {
+  @apply text-xs font-semibold text-gray-500 mb-2 uppercase tracking-widest;
+}
+
+.stat-value {
+  @apply text-3xl font-black text-gray-900;
+}
+
+/* Charts */
+.chart-grid {
+  @apply grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10;
+}
+
+.chart-card {
+  @apply bg-white p-8 rounded-2xl shadow-md border border-gray-100 flex flex-col h-[400px];
+}
+
+.chart-title {
+  @apply text-xl font-bold text-gray-800 mb-4 flex items-center gap-2;
+}
+
+.chart-container {
+  @apply flex-1 w-full relative min-h-0;
+}
+
+/* Game List */
+.game-card {
+  @apply bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all mb-4;
+}
+
+.game-title {
+  @apply font-bold text-xl mb-2 text-gray-900 group-hover:text-blue-600 transition-colors;
+}
+
+.game-info {
+  @apply text-sm text-gray-500 mb-4 flex items-center gap-4;
+}
+
+.badge {
+  @apply px-2 py-1 bg-gray-100 rounded text-xs font-semibold text-gray-600;
+}
