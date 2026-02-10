@@ -15,7 +15,7 @@ interface Props {
 
 export default function GameList({ games, username }: Props) {
     if (games.length === 0) {
-        return <div className="text-center text-gray-500 py-10">No games found.</div>;
+        return <div className="no-games-msg">No games found.</div>;
     }
 
     return (

@@ -5,21 +5,21 @@ interface Props {
 }
 
 const COLORS: Record<string, string> = {
-    'Brilliant': '#1baca6', // Teal
-    'Great': '#5b8c5a',     // Green
-    'Best': '#8cac8a',      // Light Green
-    'Excellent': '#96c997', // Lighter Green
-    'Good': '#b3d9b4',      // Pale Green
-    'Inaccuracy': '#f4d160',// Yellow
-    'Mistake': '#e08e79',   // Orange
-    'Blunder': '#b82e2e',   // Red
-    'Miss': '#d95f5f'       // Light Red
+    'Brilliant': '#1baca6',
+    'Great': '#a8c7fa',
+    'Best': '#5b8c5a',
+    'Excellent': '#96c997',
+    'Good': '#8cac8a',
+    'Inaccuracy': '#f4d160',
+    'Mistake': '#e67f12',
+    'Blunder': '#e62e2e',
+    'Miss': '#d95f5f'
 };
 
 export default function MoveQualityChart({ data }: Props) {
     if (!data) return (
         <div className="chart-card flex items-center justify-center">
-            <p className="text-gray-400">No move data available</p>
+            <p className="chart-empty-state">No move data available</p>
         </div>
     );
 
@@ -44,7 +44,7 @@ export default function MoveQualityChart({ data }: Props) {
 
     return (
         <div className="chart-card">
-            <h3 className="chart-title">🎯 Move Quality</h3>
+            <h3 className="chart-title">Move Quality</h3>
             <div className="chart-container">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={filteredData} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>

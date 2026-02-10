@@ -100,3 +100,122 @@ body {
 .badge {
   @apply px-2 py-1 bg-gray-100 rounded text-xs font-semibold text-gray-600;
 }
+/* AI Insights */
+.ai-insights-card {
+  @apply bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8 transition-all hover:shadow-md;
+}
+
+.ai-header {
+  @apply flex items-center gap-4 mb-4;
+}
+
+.ai-icon {
+  @apply w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-2xl shadow-sm text-indigo-600;
+}
+
+.ai-title {
+  @apply text-lg font-bold text-gray-900 tracking-tight;
+}
+
+.ai-subtitle {
+  @apply text-sm text-gray-500 font-medium;
+}
+
+.ai-content-box {
+  @apply bg-gray-50 p-6 rounded-xl border border-gray-100 relative;
+}
+
+.ai-text {
+  @apply text-gray-700 leading-relaxed whitespace-pre-line font-medium;
+}
+
+/* Refactored Components */
+
+/* StatsDashboard */
+.stat-value-win {
+  @apply text-green-600;
+}
+.stat-value-acc {
+  @apply text-blue-600;
+}
+.stat-value-style {
+  @apply text-purple-600 text-xl;
+}
+
+/* GameList */
+.no-games-msg {
+  @apply text-center text-gray-500 py-10;
+}
+.game-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+}
+.game-link {
+  @apply text-blue-500 hover:underline text-sm font-medium mt-2 inline-block;
+}
+
+/* AnalyzeButton */
+.analyze-btn {
+  @apply px-4 py-2 rounded font-bold text-white transition-all bg-blue-600 hover:bg-blue-700 shadow-md flex items-center gap-2;
+}
+.analyze-btn-disabled {
+  @apply px-4 py-2 rounded font-bold text-white transition-all bg-gray-400 cursor-not-allowed flex items-center gap-2;
+}
+
+/* LoadingOverlay */
+.loading-overlay {
+  @apply fixed inset-0 bg-black/50 z-50 flex flex-col items-center justify-center backdrop-blur-sm;
+}
+.loading-box {
+  @apply bg-white p-8 rounded-lg shadow-xl flex flex-col items-center;
+}
+.loading-spinner {
+  @apply w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4;
+}
+.loading-title {
+  @apply text-xl font-bold text-gray-800 mb-2;
+}
+.loading-text {
+  @apply text-gray-600 text-center max-w-xs;
+}
+
+/* Chart Components */
+.chart-empty-state {
+  @apply flex-1 flex items-center justify-center text-gray-400 text-sm font-medium;
+}
+
+/* OpeningStats */
+.opening-list-container {
+  @apply flex-1 overflow-y-auto pr-2;
+}
+.opening-table {
+  @apply w-full text-left border-collapse;
+}
+.opening-thead {
+  @apply sticky top-0 bg-white z-10;
+}
+.opening-th {
+  @apply py-2 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider;
+}
+.opening-tbody {
+  @apply divide-y divide-gray-50;
+}
+.opening-tr {
+  @apply hover:bg-blue-50/50 transition-colors cursor-default;
+}
+.opening-td-name {
+  @apply py-3 text-sm text-gray-700 font-medium truncate max-w-[200px];
+}
+.opening-td-count {
+  @apply py-3 text-sm text-gray-900 font-bold text-right;
+}
+
+.opening-th-row {
+  @apply border-b border-gray-100;
+}
+
+.opening-th-left {
+  @apply text-left;
+}
+.opening-th-right {
+  @apply text-right;
+}

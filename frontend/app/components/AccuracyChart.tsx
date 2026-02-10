@@ -13,8 +13,8 @@ interface Props {
 export default function AccuracyChart({ history }: Props) {
     if (!history || history.length === 0) return (
         <div className="chart-card">
-            <h3 className="chart-title">📈 Accuracy Trend</h3>
-            <div className="flex-1 flex items-center justify-center text-gray-400">
+            <h3 className="chart-title">Accuracy Trend</h3>
+            <div className="chart-empty-state">
                 No game history available
             </div>
         </div>
@@ -25,7 +25,7 @@ export default function AccuracyChart({ history }: Props) {
 
     return (
         <div className="chart-card">
-            <h3 className="chart-title">📈 Accuracy Trend</h3>
+            <h3 className="chart-title">Accuracy Trend</h3>
             <div className="chart-container">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>

@@ -322,8 +322,6 @@ def analyze_game(pgn_string: str):
         else:
             classification = get_classification(win_diff)
             
-            # Miss Logic (Based on User Feedback)
-            # 1. Lost Lead: Was winning (>300), now equal/unclear (<100) but not totally lost (>-500)
             if (best_cp > 300 and my_cp < 100) or (best_cp > 2000 and my_cp < 1000) or (best_cp > 500 and cp_loss > 300 and classification != "Blunder"):
                 classification = "Miss"
             

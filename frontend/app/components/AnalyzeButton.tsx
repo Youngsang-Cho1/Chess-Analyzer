@@ -10,10 +10,9 @@ export default function AnalyzeButton({ isAnalyzing, handleAnalyze, username }: 
         <button
             onClick={handleAnalyze}
             disabled={isAnalyzing}
-            className={`px-4 py-2 rounded font-bold text-white transition-all 
-        ${isAnalyzing ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 shadow-md"}`}
+            className={isAnalyzing ? "analyze-btn-disabled" : "analyze-btn"}
         >
-            {isAnalyzing ? `Analyzing ${username}...` : `Analyze ${username}'s Games 🔄`}
+            {isAnalyzing ? `Analyzing ${username}...` : `Analyze ${username}'s Games`}
         </button>
     );
 }

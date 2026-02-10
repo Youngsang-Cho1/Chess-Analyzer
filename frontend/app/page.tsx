@@ -9,6 +9,7 @@ import LoadingOverlay from "./components/LoadingOverlay";
 import AccuracyChart from "./components/AccuracyChart";
 import ResultDistributionChart from "./components/ResultDistributionChart";
 import MoveQualityChart from "./components/MoveQualityChart";
+import AIInsights from "./components/AIInsights";
 import OpeningStats from "./components/OpeningStats";
 
 interface Stats {
@@ -19,7 +20,9 @@ interface Stats {
   style: string;
   history: any[];
   classifications: Record<string, number>;
+  ai_insight: string;
 }
+
 
 export default function Home() {
   const [username, setUsername] = useState("choys1211");
@@ -116,6 +119,9 @@ export default function Home() {
 
         {/* Stats Dashboard */}
         <StatsDashboard stats={stats} />
+
+        {/* AI Insight */}
+        {stats && <AIInsights insight={stats.ai_insight} />}
 
         {/* Charts Section */}
         {mounted && stats && stats.history && stats.history.length > 0 && (
