@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 interface Props {
     data: Record<string, number>;
@@ -7,6 +7,7 @@ interface Props {
 const COLORS: Record<string, string> = {
     'Brilliant': '#1baca6',
     'Great': '#a8c7fa',
+    'Book': '#d38e0395',
     'Best': '#5b8c5a',
     'Excellent': '#96c997',
     'Good': '#8cac8a',
@@ -28,7 +29,7 @@ export default function MoveQualityChart({ data }: Props) {
         count: data[key]
     }));
 
-    const validKeys = ['Brilliant', 'Great', 'Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder', 'Miss'];
+    const validKeys = ['Brilliant', 'Great', 'Book', 'Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder', 'Miss'];
     const filteredData = chartData.filter(d => validKeys.includes(d.name));
 
     if (filteredData.length === 0 || filteredData.every(d => d.count === 0)) {
@@ -69,6 +70,12 @@ export default function MoveQualityChart({ data }: Props) {
                             {filteredData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[entry.name] || '#8884d8'} />
                             ))}
+                            <LabelList
+                                dataKey="count"
+                                position="top"
+                                style={{ fontSize: 11, fontWeight: 700, fill: '#475569' }}
+                                formatter={(value: unknown) => Number(value) > 0 ? String(value) : ''}
+                            />
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>

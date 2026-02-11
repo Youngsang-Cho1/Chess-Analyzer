@@ -149,6 +149,7 @@ export default function Home() {
           />
         </div>
 
+
         {/* Game List */}
         <GameList games={games} username={username} />
       </div>

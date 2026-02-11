@@ -1,5 +1,8 @@
 
+import Link from "next/link";
+
 interface Game {
+    id: number;
     white_username: string;
     black_username: string;
     white_result: string;
@@ -30,9 +33,10 @@ export default function GameList({ games, username }: Props) {
                         <p className="game-info">
                             {game.time_control} • {isWhite ? game.white_result : game.black_result}
                         </p>
-                        <a href={game.url} target="_blank" rel="noopener noreferrer" className="game-link">
-                            View on Chess.com
-                        </a>
+                        {/* Link = 클릭하면 /game/42 로 이동 (새로고침 없이!) */}
+                        <Link href={`/game/${game.id}`} className="game-link">
+                            Review Game
+                        </Link>
                     </div>
                 );
             })}

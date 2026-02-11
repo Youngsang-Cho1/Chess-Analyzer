@@ -38,6 +38,15 @@ def get_games(username: str):
     db.close()
     return {"games": games}
 
+@app.get("/game/{game_id}")
+def get_game(game_id: int):
+    db = SessionLocal()
+    game = db.query(Game).filter(Game.id == game_id).first()
+    db.close()
+    if not game:
+        return {"error": "Game not found"}
+    return {"game": game}
+
 @app.get('/stats/{username}')
 def get_stats(username: str):
     stats = get_player_stats(username, limit=50)

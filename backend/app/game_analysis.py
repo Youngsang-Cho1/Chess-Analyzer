@@ -1,5 +1,6 @@
 import os
 import chess.pgn
+import chess.polyglot
 import io
 import json
 from dotenv import load_dotenv
@@ -10,9 +11,9 @@ import statistics
 load_dotenv()
 
 stockfish_path = os.getenv("STOCKFISH_PATH")
+base_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Load Opening Data (ECO) & Normalize Keys
-# Stripped Move Counts (last 2 fields) from keys to ensure fast lookup
+# Load Opening Data (ECO)
 eco_data = {}
 try:
     with open("eco.json", "r") as f:
@@ -22,17 +23,35 @@ try:
             # normalized = "rnb... b KQkq" (removing en passant, half move, full move)
             norm_key = " ".join(k.split(" ")[:3])
             eco_data[norm_key] = v
-            
-    print(f"Loaded {len(eco_data)} openings (Normalized).")
+    print(f"Loaded {len(eco_data)} openings (ECO).")
 except Exception as e:
     print(f"Warning: ECO data missing: {e}")
 
-def get_opening_details(board):
-    # Lookup using Normalized FEN (Position + Turn + Castle)
+# Polyglot Opening Book
+polyglot_path = os.path.join(base_dir, "gm2001.bin")
+has_polyglot = os.path.exists(polyglot_path)
+
+if has_polyglot:
+    print(f"Polyglot book loaded: {polyglot_path}")
+else:
+    print("Warning: Polyglot book (gm2001.bin) not found. Using ECO only.")
+
+def get_opening_name(board):
+    # ECO lookup
     fen_parts = board.fen().split(" ")
     norm_key = " ".join(fen_parts[:3])
-    
     return eco_data.get(norm_key)
+
+def is_in_book(board):
+    # Polyglot book move check
+    if not has_polyglot:
+        return False
+    try:
+        with chess.polyglot.open_reader(polyglot_path) as reader:
+            reader.find(board)
+            return True
+    except (KeyError, IndexError):
+        return False
 
 def get_win_prob(cp):
     if cp is None: 
@@ -175,7 +194,7 @@ def calculate_stats(moves):
     
     # Count move classifications
     counts = {
-        "Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0,
+        "Brilliant": 0, "Great": 0, "Book": 0, "Best": 0, "Excellent": 0,
         "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0
     }
     
@@ -233,10 +252,22 @@ def analyze_game(pgn_string: str):
     analysis_results = []
     prev_score = 0
     
-    # Initialize with PGN Header Opening (Fallback)
-    pgn_opening = game.headers.get("Opening", "Opening Move")
-    if pgn_opening == "?":
-        pgn_opening = "Opening Move"
+    # 1. Parse opening name from Chess.com ECOUrl header
+    eco_url = game.headers.get("ECOUrl", "")
+    pgn_opening = "Opening Move"
+    if eco_url:
+        parts = eco_url.split("/openings/")
+        if len(parts) > 1:
+            import re
+            raw_name = parts[1].split("?")[0]
+            raw_name = re.split(r'-\d+\.', raw_name)[0]
+            pgn_opening = raw_name.replace("-", " ").strip()
+    
+    if pgn_opening == "Opening Move":
+        header_opening = game.headers.get("Opening", "")
+        if header_opening and header_opening != "?":
+            pgn_opening = header_opening
+    
     current_opening = pgn_opening
 
     all_win_percentages = []
@@ -244,17 +275,21 @@ def analyze_game(pgn_string: str):
     
     print("--- Analysis Start ---")
 
+    is_book = True
     for i, move in enumerate(game.mainline_moves()):
-        if i // 2 >= 12 and current_opening == "Opening Move":
-             current_opening = "No Opening detected"
+        if i // 2 >= 12 and current_opening == "Opening Move" and not is_book:
+             current_opening = "No Opening"
         is_white = board.turn
-        move_uci = move.uci() # format: e2e4, e7e5, ...
-        move_san = board.san(move) # format: e4, e5, ...
+        move_uci = move.uci()
+        move_san = board.san(move)
         
         board.push(move)
-        opening_info = get_opening_details(board)
+        opening_info = get_opening_name(board)
         if opening_info:
             current_opening = opening_info.get('name', current_opening)
+            is_book = True
+        else:
+            is_book = is_in_book(board)
         
         # 2. Get Top Moves
         board.pop()
@@ -306,8 +341,11 @@ def analyze_game(pgn_string: str):
         prev_win_prob = get_win_prob(prev_cp_pers)
         
         classification = "Normal"
+
+        if is_book:
+            classification = "Book"
         
-        if move_uci == best_move:
+        elif move_uci == best_move:
             if len(top_moves) == 1:
                 classification = "Forced" # only available move
             else:

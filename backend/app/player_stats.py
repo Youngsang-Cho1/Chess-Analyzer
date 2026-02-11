@@ -29,7 +29,7 @@ def get_player_stats(username: str, limit: int = 50):
         history = [] # For storing individual game details
         
         classifications = {
-            "Brilliant": 0, "Great": 0, "Best": 0, 
+            "Brilliant": 0, "Great": 0, "Book": 0, "Best": 0,
             "Excellent": 0, "Good": 0, "Inaccuracy": 0, 
             "Mistake": 0, "Blunder": 0, "Miss": 0
         }

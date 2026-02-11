@@ -10,9 +10,9 @@ interface Props {
 }
 
 const COLORS = {
-    'Win': '#10b981', // Emerald 500
-    'Loss': '#ef4444', // Red 500
-    'Draw': '#94a3b8'  // Slate 400
+    'Win': '#10b981',
+    'Loss': '#ef4444',
+    'Draw': '#94a3b8'
 };
 
 export default function ResultDistributionChart({ history }: Props) {
