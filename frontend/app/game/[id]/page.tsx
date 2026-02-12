@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import ChessBoard from "../../components/ChessBoard";
 
-// Game data from backend
 interface GameData {
     id: number;
     pgn: string;
@@ -16,21 +15,70 @@ interface GameData {
     opening: string;
 }
 
+interface MoveAnalysis {
+    id: number;
+    move_number: number;
+    move_uci: string;
+    move_san: string;
+    score: number;
+    classification: string;
+    color: string;
+    best_move: string;
+    opening: string;
+}
+
+const classColors: Record<string, string> = {
+    Brilliant: "#26c2a3",
+    Great: "#5b8bb4",
+    Book: "#a88b5e",
+    Best: "#99cc68",
+    Excellent: "#99cc68",
+    Good: "#81b64c",
+    Inaccuracy: "#f7c631",
+    Mistake: "#e6912b",
+    Blunder: "#ca3431",
+    Miss: "#ff6b6b",
+};
+
 export default function GamePage() {
-    // useParams() = URL에서 [id] 값을 자동으로 꺼내줌
-    // /game/42 접속하면 → params.id = "42"
     const params = useParams();
     const [game, setGame] = useState<GameData | null>(null);
+    const [analysis, setAnalysis] = useState<MoveAnalysis[]>([]);
+    const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
+    const moveListRef = useRef<HTMLDivElement>(null);
 
-    // 페이지 열리면 백엔드에서 게임 데이터 가져옴
     useEffect(() => {
         const fetchGame = async () => {
             const res = await fetch(`http://localhost:8000/game/${params.id}`);
             const data = await res.json();
             setGame(data.game);
+            setAnalysis(data.analysis || []);
         };
         fetchGame();
     }, [params.id]);
+
+    // Auto-scroll move list to current move
+    useEffect(() => {
+        if (moveListRef.current) {
+            const activeItem = moveListRef.current.querySelector(".move-active");
+            if (activeItem) {
+                activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }
+    }, [currentMoveIndex]);
+
+    const handleMoveChange = (index: number) => {
+        setCurrentMoveIndex(index);
+    };
+
+    const handleMoveClick = (index: number) => {
+        setCurrentMoveIndex(index);
+    };
+
+    // Get classification for current move (index is 1-based in analysis)
+    const currentAnalysis = analysis.length > 0 && currentMoveIndex > 0
+        ? analysis[currentMoveIndex - 1]
+        : null;
 
     if (!game) {
         return <div className="analysis-page">Loading...</div>;
@@ -39,16 +87,65 @@ export default function GamePage() {
     return (
         <div className="analysis-page">
             <div className="max-w-container">
-                {/* 게임 정보 헤더 */}
                 <h1 className="page-title">
                     {game.white_username} vs {game.black_username}
                 </h1>
-                <p style={{ color: "#64748b", marginBottom: "2rem" }}>
+                <p className="game-subtitle">
                     {game.opening} • {game.time_control}
                 </p>
 
-                {/* 체스보드 */}
-                <ChessBoard chess_PGN={game.pgn} />
+                <div className="review-layout">
+                    {/* Left: ChessBoard */}
+                    <div className="review-board">
+                        <ChessBoard
+                            chess_PGN={game.pgn}
+                            initialMoveIndex={currentMoveIndex}
+                            onMoveChange={handleMoveChange}
+                        />
+
+                        {/* Current move info */}
+                        {currentAnalysis && (
+                            <div className="move-info-card">
+                                <span
+                                    className="classification-badge"
+                                    style={{ background: classColors[currentAnalysis.classification] || "#64748b" }}
+                                >
+                                    {currentAnalysis.classification}
+                                </span>
+                                <span className="move-detail">
+                                    Move {currentAnalysis.move_number} ({currentAnalysis.color})
+                                    {currentAnalysis.best_move && currentAnalysis.classification !== "Best" && currentAnalysis.classification !== "Book" && (
+                                        <span className="best-move-hint"> • Best: {currentAnalysis.best_move}</span>
+                                    )}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Right: Move List */}
+                    <div className="review-moves" ref={moveListRef}>
+                        <h3 className="moves-header">Moves</h3>
+                        {analysis.map((move, i) => (
+                            <div
+                                key={move.id}
+                                className={`move-item ${currentMoveIndex === i + 1 ? "move-active" : ""}`}
+                                onClick={() => handleMoveClick(i + 1)}
+                            >
+                                <span className="move-num">
+                                    {move.move_number}.{move.color === "black" ? ".." : ""}
+                                </span>
+                                <span className="move-uci">{move.move_san || move.move_uci}</span>
+                                <span
+                                    className="move-class-dot"
+                                    style={{ background: classColors[move.classification] || "#64748b" }}
+                                    title={move.classification}
+                                >
+                                    {move.classification}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );

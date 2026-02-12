@@ -1,19 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
 
 interface Props {
     chess_PGN: string;
+    initialMoveIndex: number;
+    onMoveChange?: (index: number) => void;
 }
 
-export default function ChessBoard({ chess_PGN }: Props) {
+export default function ChessBoard({ chess_PGN, initialMoveIndex, onMoveChange }: Props) {
     const game = new Chess();
     game.loadPgn(chess_PGN);
 
-    const moves = game.history(); // all moves
-    const [moveIndex, setMoveIndex] = useState(moves.length); // display last move first
+    const moves = game.history();
+    const [moveIndex, setMoveIndex] = useState(initialMoveIndex ?? moves.length);
+
+    // If parent changes initialMoveIndex, sync it
+    useEffect(() => {
+        if (initialMoveIndex !== undefined) {
+            setMoveIndex(initialMoveIndex);
+        }
+    }, [initialMoveIndex]);
+
+    const changeMoveIndex = (newIndex: number) => {
+        setMoveIndex(newIndex);
+        onMoveChange?.(newIndex);  // notify parent
+    };
 
     const getPosition = () => {
         const tempGame = new Chess();
@@ -23,10 +37,10 @@ export default function ChessBoard({ chess_PGN }: Props) {
         return tempGame.fen();
     };
 
-    const goToStart = () => setMoveIndex(0);
-    const goBack = () => setMoveIndex(Math.max(0, moveIndex - 1));
-    const goForward = () => setMoveIndex(Math.min(moves.length, moveIndex + 1));
-    const goToEnd = () => setMoveIndex(moves.length);
+    const goToStart = () => changeMoveIndex(0);
+    const goBack = () => changeMoveIndex(Math.max(0, moveIndex - 1));
+    const goForward = () => changeMoveIndex(Math.min(moves.length, moveIndex + 1));
+    const goToEnd = () => changeMoveIndex(moves.length);
 
     return (
         <div className="board-wrapper">

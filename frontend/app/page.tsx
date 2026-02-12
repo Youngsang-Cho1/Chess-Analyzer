@@ -60,10 +60,10 @@ export default function Home() {
     fetchAllData(username);
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (limit: number) => {
     setIsAnalyzing(true);
     try {
-      const url = `http://localhost:8000/analyze/${username}`;
+      const url = `http://localhost:8000/analyze/${username}?limit=${limit}`;
       const options = {
         method: "POST",
         headers: {
@@ -134,7 +134,7 @@ export default function Home() {
 
             {/* Row 2: Deep Analysis */}
             <div className="chart-grid">
-              <MoveQualityChart data={stats.classifications} />
+              <MoveQualityChart data={stats.classifications} username={username} />
               <OpeningStats history={stats.history} />
             </div>
           </>

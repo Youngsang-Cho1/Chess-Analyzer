@@ -1,7 +1,9 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { useRouter } from "next/navigation";
 
 interface Props {
     data: Record<string, number>;
+    username: string;
 }
 
 const COLORS: Record<string, string> = {
@@ -17,7 +19,8 @@ const COLORS: Record<string, string> = {
     'Miss': '#d95f5f'
 };
 
-export default function MoveQualityChart({ data }: Props) {
+export default function MoveQualityChart({ data, username }: Props) {
+    const router = useRouter();
     if (!data) return (
         <div className="chart-card flex items-center justify-center">
             <p className="chart-empty-state">No move data available</p>
@@ -66,7 +69,12 @@ export default function MoveQualityChart({ data }: Props) {
                             cursor={{ fill: '#f8fafc' }}
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         />
-                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                        <Bar dataKey="count" radius={[4, 4, 0, 0]}
+                            onClick={(data) => {
+                                router.push(`/moves/${username}/${data.name}`)
+                            }}
+                            style={{ cursor: "pointer" }}
+                        >
                             {filteredData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[entry.name] || '#8884d8'} />
                             ))}
@@ -76,6 +84,7 @@ export default function MoveQualityChart({ data }: Props) {
                                 style={{ fontSize: 11, fontWeight: 700, fill: '#475569' }}
                                 formatter={(value: unknown) => Number(value) > 0 ? String(value) : ''}
                             />
+
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>

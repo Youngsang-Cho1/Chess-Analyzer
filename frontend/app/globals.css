@@ -305,6 +305,23 @@ body {
 }
 
 /* Analyze Button */
+.analyze-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.game-limit-select {
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--foreground);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
 .analyze-btn {
   padding: 0.5rem 1rem;
   border-radius: 8px;
@@ -591,4 +608,124 @@ body {
   color: var(--secondary);
   min-width: 4rem;
   text-align: center;
+}
+
+/* Game Review Layout */
+.game-subtitle {
+  color: #64748b;
+  margin-bottom: 2rem;
+}
+
+.review-layout {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.review-board {
+  flex: 1;
+  max-width: 560px;
+}
+
+.review-moves {
+  flex: 1;
+  max-height: 600px;
+  overflow-y: auto;
+  background: var(--card-bg);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--card-shadow);
+  padding: 1rem;
+}
+
+.moves-header {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--accent);
+}
+
+.move-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-size: 0.85rem;
+}
+
+.move-item:hover {
+  background: var(--accent);
+}
+
+.move-active {
+  background: var(--primary) !important;
+  color: white;
+}
+
+.move-num {
+  min-width: 2.5rem;
+  font-weight: 600;
+  color: var(--secondary);
+}
+
+.move-active .move-num {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.move-uci {
+  flex: 1;
+  font-family: monospace;
+  font-weight: 500;
+}
+
+.move-class-dot {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  color: white;
+}
+
+/* Move Info Card (below board) */
+.move-info-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--card-shadow);
+}
+
+.classification-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  color: white;
+}
+
+.move-detail {
+  font-size: 0.85rem;
+  color: var(--secondary);
+}
+
+.best-move-hint {
+  color: #ca3431;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .review-layout {
+    flex-direction: column;
+  }
+
+  .review-board {
+    max-width: 100%;
+  }
 }

@@ -36,7 +36,9 @@ class MoveAnalysis(Base):
     game_id = Column(Integer, ForeignKey("games.id"))
     move_number = Column(Integer)
     move_uci = Column(String)
+    move_san = Column(String)
     score = Column(Integer) # Store as centipawns (can be null for mate)
-    classification = Column(String) # Best, Good, Mistake, Blunder, etc.
+    classification = Column(String)
+    color = Column(String) # "white" or "black"
     best_move = Column(String)
     opening = Column(String)

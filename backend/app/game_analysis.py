@@ -77,12 +77,25 @@ PIECE_VALUES = {
     chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0
 }
 
+def get_min_recapture_value(board, move):
+    board.push(move)
+    min_val = None
+    for m in board.legal_moves:
+        if m.to_square == move.to_square:
+            piece = board.piece_at(m.from_square)
+            if piece:
+                val = PIECE_VALUES[piece.piece_type]
+                min_val = val if min_val is None else min(min_val, val)
+    board.pop()
+    return min_val is not None, min_val or 0
+
 def is_sacrifice(board, move):
     is_sacrifice = False
     
     if board.is_capture(move): 
         # Check for Recapture
         is_recapture = False
+        # Check if the move is a recapture
         if board.move_stack: 
             last_move = board.peek() 
             if move.to_square == last_move.to_square:
@@ -100,32 +113,17 @@ def is_sacrifice(board, move):
             target_val = PIECE_VALUES[target_piece.piece_type]
             val_diff = my_val - target_val
             
-            if board.is_attacked_by(not board.turn, move.to_square):
-                if is_recapture:
-                    # Equal trade (Rook x Rook)
+            can_recapture, min_threat_val = get_min_recapture_value(board, move)
+            
+            if can_recapture: # If the opponent can recapture
+                if is_recapture: # If the player's move was a recapture
                     if my_val == target_val:
                         is_sacrifice = False
-                    # Winning trade (Pawn x Rook)
                     elif my_val < target_val:
                         is_sacrifice = False
-                    # Losing trade (Rook x Pawn)
                     else:
-                        threats = board.attackers(not board.turn, move.to_square)
-                        
-                        # Filter out King if the square is protected (King cannot capture protected piece)
-                        is_protected = board.is_attacked_by(board.turn, move.to_square)
-                        
-                        min_threat_val = 100
-                        for square in threats:
-                            tp = board.piece_at(square)
-                            if tp:
-                                # Skip King if the piece is protected
-                                if tp.piece_type == chess.KING and is_protected:
-                                    continue
-                                min_threat_val = min(min_threat_val, PIECE_VALUES[tp.piece_type])
-                        
                         # Threatened by smaller piece : Sacrifice
-                        if min_threat_val < my_val and min_threat_val < 100:
+                        if min_threat_val < my_val:
                             is_sacrifice = True
                 else:
                     if val_diff >= 2:
@@ -133,22 +131,10 @@ def is_sacrifice(board, move):
                         
     else:
         # Case B: Passive Sacrifice
-        if board.is_attacked_by(not board.turn, move.to_square):
-            my_piece = board.piece_at(move.from_square)
-            threats = board.attackers(not board.turn, move.to_square)
-            
-            # Check if piece is protected
-            is_protected = board.is_attacked_by(board.turn, move.to_square)
-            
-            min_threat_val = 100
-            for square in threats:
-                threat_piece = board.piece_at(square)
-                # Skip King if protected
-                if threat_piece.piece_type == chess.KING and is_protected:
-                    continue
-                min_threat_val = min(min_threat_val, PIECE_VALUES[threat_piece.piece_type])
-            
-            if PIECE_VALUES[my_piece.piece_type] - min_threat_val >= 2:
+        my_piece = board.piece_at(move.from_square)
+        if my_piece:
+            can_recapture, min_threat_val = get_min_recapture_value(board, move)
+            if can_recapture and PIECE_VALUES[my_piece.piece_type] - min_threat_val >= 2:
                 is_sacrifice = True
 
     return is_sacrifice
@@ -355,7 +341,7 @@ def analyze_game(pgn_string: str):
             if second_cp is not None:
                 second_cp_loss = abs(second_cp - best_cp)
                 # 2nd best is much worse and position is balanced
-                if second_cp_loss >= 250 and -500 < my_cp < 500:
+                if second_cp_loss >= 400 and -500 < my_cp < 500:
                      classification = "Great"
         else:
             classification = get_classification(win_diff)
@@ -366,7 +352,7 @@ def analyze_game(pgn_string: str):
         # Brilliant: Sacrifice that's nearly optimal (≤50cp loss, not losing)
         if is_sac:
             print(f"debug: move={move_uci}, is_sac={is_sac}, cp_loss={cp_loss:.1f}, my_cp={my_cp:.1f}, is_white={is_white}")
-        if is_sac and cp_loss <= 50 and my_cp > -300:
+        if is_sac and cp_loss <= 50 and my_cp > -100:
              classification = "Brilliant"
 
 
@@ -381,6 +367,7 @@ def analyze_game(pgn_string: str):
             "move_san": move_san,
             "score": curr_score_white,
             "classification": classification,
+            "color": "white" if is_white else "black",
             "best_move": best_move,
             "opening": current_opening,
             "accuracy": round(move_accuracy, 1),

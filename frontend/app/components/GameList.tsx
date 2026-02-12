@@ -33,7 +33,6 @@ export default function GameList({ games, username }: Props) {
                         <p className="game-info">
                             {game.time_control} • {isWhite ? game.white_result : game.black_result}
                         </p>
-                        {/* Link = 클릭하면 /game/42 로 이동 (새로고침 없이!) */}
                         <Link href={`/game/${game.id}`} className="game-link">
                             Review Game
                         </Link>
