@@ -76,30 +76,44 @@ class ChessComClient:
             print(f"Error fetching Game ID {game_id}: {e}")
             return None
 
-    def get_latest_game_vs_player(self, username: str, opponent_username: str):
+    def get_games_vs_opponent(self, username: str, opponent_username: str, limit: int = 5):
+        collected_games = []
         try:
             archive_url = f"{self.base_url}/player/{username}/games/archives"
             res = requests.get(archive_url, headers=self.headers)
             res.raise_for_status()
             archives = res.json().get('archives', [])
             
+            # Iterate archives in reverse (newest first)
             for archive_url in reversed(archives):
-                games = requests.get(archive_url, headers=self.headers)
-                games.raise_for_status()
-                games = games.json().get('games', [])
-                
-                for game in games:
-                    white = game.get('white', {}).get('username', '').lower()
-                    black = game.get('black', {}).get('username', '').lower()
-                    target = opponent_username.lower()
+                if len(collected_games) >= limit:
+                    break
                     
-                    if white == target or black == target:
-                        return game.get('pgn')
+                try:
+                    games_res = requests.get(archive_url, headers=self.headers)
+                    games_res.raise_for_status()
+                    games = games_res.json().get('games', [])
+                    
+                    # Process games in this archive (newest first within archive too)
+                    for game in reversed(games):
+                        white = game.get('white', {}).get('username', '').lower()
+                        black = game.get('black', {}).get('username', '').lower()
+                        target = opponent_username.lower()
+                        
+                        if white == target or black == target:
+                            collected_games.append(game)
+                            if len(collected_games) >= limit:
+                                break
+                except Exception as e:
+                    print(f"Error fetching archive {archive_url}: {e}")
+                    continue
             
-            print(f"No game found against {opponent_username} in recent archive.")
-            return None
+            if not collected_games:
+                print(f"No games found against {opponent_username}.")
+                
+            return collected_games
             
         except requests.exceptions.RequestException as e:
-            print(f"Error searching game vs {opponent_username}: {e}")
-            return None
+            print(f"Error searching games vs {opponent_username}: {e}")
+            return []
     

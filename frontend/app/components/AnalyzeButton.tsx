@@ -8,21 +8,21 @@ interface Props {
 export default function AnalyzeButton({ isAnalyzing, handleAnalyze, username }: Props) {
     return (
         <div className="analyze-row">
-            <select
+            <input
                 id="game-limit"
+                type="number"
+                min="1"
+                max="50"
+                placeholder="Games to analyze (default: 5)"
+                className="game-limit-input"
                 defaultValue={5}
-                className="game-limit-select"
                 disabled={isAnalyzing}
-            >
-                <option value={5}>5 games</option>
-                <option value={10}>10 games</option>
-                <option value={20}>20 games</option>
-                <option value={50}>50 games</option>
-            </select>
+            />
             <button
                 onClick={() => {
-                    const select = document.getElementById("game-limit") as HTMLSelectElement;
-                    handleAnalyze(Number(select.value));
+                    const input = document.getElementById("game-limit") as HTMLInputElement;
+                    const limit = Number(input.value) || 5; // Default to 5 if empty
+                    handleAnalyze(limit);
                 }}
                 disabled={isAnalyzing}
                 className={isAnalyzing ? "analyze-btn-disabled" : "analyze-btn"}

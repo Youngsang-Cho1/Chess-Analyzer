@@ -11,6 +11,7 @@ import ResultDistributionChart from "./components/ResultDistributionChart";
 import MoveQualityChart from "./components/MoveQualityChart";
 import AIInsights from "./components/AIInsights";
 import OpeningStats from "./components/OpeningStats";
+import OpponentSearch from "./components/OpponentSearch";
 
 interface Stats {
   win_rate: number;
@@ -30,6 +31,7 @@ export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [opponent, setOpponent] = useState("");
 
   // Prevent hydration mismatch for charts
   useEffect(() => {
@@ -64,6 +66,41 @@ export default function Home() {
     setIsAnalyzing(true);
     try {
       const url = `http://localhost:8000/analyze/${username}?limit=${limit}`;
+      const options = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username }),
+      };
+      await fetch(url, options);
+
+      // Artificial delay
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      alert(`Optimization started for ${username}. Data will refresh automatically.`);
+
+      fetchAllData(username);
+
+      setTimeout(() => {
+        fetchAllData(username);
+      }, 10000);
+
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Analysis failed.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const opponentAnalyze = async (limit: number, opponent?: string) => {
+    setIsAnalyzing(true);
+    try {
+      let url = `http://localhost:8000/analyze/${username}?limit=${limit}`;
+      if (opponent) {
+        url += `&opponent=${opponent}`;
+      }
       const options = {
         method: "POST",
         headers: {
@@ -141,10 +178,15 @@ export default function Home() {
         )}
 
         {/* Analyze Button */}
-        <div className="mb-8 flex justify-end">
+        <div className="mb-8 flex flex-col items-end gap-4">
           <AnalyzeButton
             isAnalyzing={isAnalyzing}
             handleAnalyze={handleAnalyze}
+            username={username}
+          />
+          <OpponentSearch
+            isAnalyzing={isAnalyzing}
+            handleAnalyze={opponentAnalyze}
             username={username}
           />
         </div>

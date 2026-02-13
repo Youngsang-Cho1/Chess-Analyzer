@@ -47,6 +47,7 @@ export default function GamePage() {
     const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
     const [llmReview, setLlmReview] = useState("");
     const [isReviewLoading, setIsReviewLoading] = useState(false);
+    const [score, setScore] = useState(0);
     const moveListRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -76,10 +77,18 @@ export default function GamePage() {
     const handleMoveClick = async (index: number) => {
         setCurrentMoveIndex(index);
 
-        // Fetch LLM review for this move
+        if (index === 0) {
+            setScore(0);
+            setLlmReview("");
+            return;
+        }
+
         const move = analysis[index - 1];
         if (!move) return;
 
+        setScore(Number((move.score / 100).toFixed(2)));
+
+        // Fetch LLM review for this move
         setIsReviewLoading(true);
         setLlmReview("");
         try {
@@ -126,6 +135,10 @@ export default function GamePage() {
                     {/* Right: Move List */}
                     <div className="review-moves" ref={moveListRef}>
                         <h3 className="moves-header">Moves</h3>
+                        <div className="score-container">
+                            <span className="score-label">Score:</span>
+                            <span className="score-value">{score}</span>
+                        </div>
 
                         {/* LLM Review */}
                         {isReviewLoading && (

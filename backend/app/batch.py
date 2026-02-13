@@ -5,16 +5,19 @@ from models import Game
 from crud import save_game, save_analysis
 import time
 
-def process_user_games(username: str, limit: int = 10):
+def process_user_games(username: str, limit: int = 10, opponent: str = None):
     client = ChessComClient()
     db = SessionLocal()
     
-    print(f"Fetching data for user: {username} (Target: {limit} new games)...")
-    
-    games = client.get_recent_games(username) 
+    if opponent:
+        print(f"Fetching games for {username} vs {opponent} (Target: {limit} games)...")
+        games = client.get_games_vs_opponent(username, opponent, limit)
+    else:
+        print(f"Fetching data for user: {username} (Target: {limit} new games)...")
+        games = client.get_recent_games(username, limit) 
     
     if not games:
-        print(f"No games found for {username}")
+        print(f"No games found for {username}" + (f" vs {opponent}" if opponent else ""))
         db.close()
         return
 

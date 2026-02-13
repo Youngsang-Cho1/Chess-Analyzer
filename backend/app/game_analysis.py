@@ -117,14 +117,17 @@ def is_sacrifice(board, move):
             if can_recapture: # If the opponent can recapture
                 if is_recapture: # If the player's move was a recapture
                     if target_val >= my_val:
-                         # Captured equal or higher value piece
+                         # Captured equal or higher value piece -> Is Trade or Win -> Not Sacrifice
                         is_sacrifice = False
                     else:
-                        # Captured smaller piece with bigger piece and can be recaptured
+                        # Captured smaller piece with bigger piece -> Sacrifice
                         is_sacrifice = True
                 else: 
-                    if my_val - min_threat_val >= 2:
-                        is_sacrifice = True
+                     # Non-recapture capture (Case A): 
+                     # Sacrifice if I lose significantly more than I gain
+                     # AND I am capturing a piece of lower value (preventing winning trades from being sacrifices)
+                     if my_val - min_threat_val >= 2 and target_val < my_val:
+                         is_sacrifice = True
                         
     else:
         # Case B: Passive Sacrifice

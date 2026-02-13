@@ -322,6 +322,17 @@ body {
   cursor: pointer;
 }
 
+.game-limit-input {
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--foreground);
+  font-weight: 600;
+  font-size: 0.875rem;
+  width: 120px;
+}
+
 .analyze-btn {
   padding: 0.5rem 1rem;
   border-radius: 8px;

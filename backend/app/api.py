@@ -31,9 +31,12 @@ def read_root():
 
 
 @app.post("/analyze/{username}")
-def analyze_games(username: str, background_tasks: BackgroundTasks, limit: int = 5):
-    background_tasks.add_task(process_user_games, username, limit=limit)
-    return {"message": f"Analysis started for {username} ({limit} games). Refresh in a few minutes."}
+def analyze_games(username: str, background_tasks: BackgroundTasks, limit: int = 5, opponent: str = None):
+    background_tasks.add_task(process_user_games, username, limit=limit, opponent=opponent) # using batch.py
+    msg = f"Analysis started for {username} ({limit} games)"
+    if opponent:
+        msg += f" vs {opponent}"
+    return {"message": msg + ". Refresh in a few minutes."}
 
 @app.get("/games/{username}")
 def get_games(username: str):
