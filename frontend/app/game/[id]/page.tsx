@@ -45,6 +45,8 @@ export default function GamePage() {
     const [game, setGame] = useState<GameData | null>(null);
     const [analysis, setAnalysis] = useState<MoveAnalysis[]>([]);
     const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
+    const [llmReview, setLlmReview] = useState("");
+    const [isReviewLoading, setIsReviewLoading] = useState(false);
     const moveListRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -71,11 +73,28 @@ export default function GamePage() {
         setCurrentMoveIndex(index);
     };
 
-    const handleMoveClick = (index: number) => {
+    const handleMoveClick = async (index: number) => {
         setCurrentMoveIndex(index);
+
+        // Fetch LLM review for this move
+        const move = analysis[index - 1];
+        if (!move) return;
+
+        setIsReviewLoading(true);
+        setLlmReview("");
+        try {
+            const res = await fetch(`http://localhost:8000/review/move/${move.id}`, {
+                method: "POST",
+            });
+            const data = await res.json();
+            setLlmReview(data.review);
+        } catch {
+            setLlmReview("Failed to load review.");
+        }
+        setIsReviewLoading(false);
     };
 
-    // Get classification for current move (index is 1-based in analysis)
+    // Get classification for current move
     const currentAnalysis = analysis.length > 0 && currentMoveIndex > 0
         ? analysis[currentMoveIndex - 1]
         : null;
@@ -95,13 +114,36 @@ export default function GamePage() {
                 </p>
 
                 <div className="review-layout">
-                    {/* Left: ChessBoard */}
+                    {/* Left: ChessBoard + Move Info + LLM Review */}
                     <div className="review-board">
                         <ChessBoard
                             chess_PGN={game.pgn}
                             initialMoveIndex={currentMoveIndex}
                             onMoveChange={handleMoveChange}
                         />
+                    </div>
+
+                    {/* Right: Move List */}
+                    <div className="review-moves" ref={moveListRef}>
+                        <h3 className="moves-header">Moves</h3>
+
+                        {/* LLM Review */}
+                        {isReviewLoading && (
+                            <div className="llm-review-card">
+                                <div className="review-loading">
+                                    <span className="loading-dot"></span>
+                                    <span className="loading-dot"></span>
+                                    <span className="loading-dot"></span>
+                                    Reviewing...
+                                </div>
+                            </div>
+                        )}
+                        {llmReview && !isReviewLoading && (
+                            <div className="llm-review-card">
+                                <h4 className="review-title">AI Coach</h4>
+                                <p className="review-text">{llmReview}</p>
+                            </div>
+                        )}
 
                         {/* Current move info */}
                         {currentAnalysis && (
@@ -120,11 +162,6 @@ export default function GamePage() {
                                 </span>
                             </div>
                         )}
-                    </div>
-
-                    {/* Right: Move List */}
-                    <div className="review-moves" ref={moveListRef}>
-                        <h3 className="moves-header">Moves</h3>
                         {analysis.map((move, i) => (
                             <div
                                 key={move.id}

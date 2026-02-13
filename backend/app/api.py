@@ -5,6 +5,9 @@ from models import Game, MoveAnalysis, Base
 from sqlalchemy import or_
 from batch import process_user_games
 from player_stats import get_player_stats
+from llm_reviewer import ChessReviewer
+
+reviewer = ChessReviewer()
 
 app = FastAPI()
 
@@ -75,5 +78,24 @@ def get_moves(username: str, classification: str):
         if move.color == user_color:
             res.append(move)
     return {"moves": res}
-    
 
+
+@app.post("/review/move/{move_id}")
+def review_move(move_id: int):
+    db = SessionLocal()
+    move = db.query(MoveAnalysis).filter(MoveAnalysis.id == move_id).first()
+    db.close()
+    if not move:
+        return {"error": "Move not found"}
+
+    move_data = {
+        "move_san": move.move_san or move.move_uci,
+        "classification": move.classification,
+        "move_number": move.move_number,
+        "color": move.color,
+        "score": move.score,
+        "best_move": move.best_move or "N/A",
+        "opening": move.opening or "Unknown"
+    }
+    review = reviewer.review_move(move_data)
+    return {"review": review}

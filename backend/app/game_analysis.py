@@ -106,27 +106,24 @@ def is_sacrifice(board, move):
 
         # Case A: Active Sacrifice
         my_piece = board.piece_at(move.from_square)
-        target_piece = board.piece_at(move.to_square)
+        target_piece = board.piece_at(move.to_square) # the piece being captured
         
         if my_piece and target_piece:
             my_val = PIECE_VALUES[my_piece.piece_type]
             target_val = PIECE_VALUES[target_piece.piece_type]
-            val_diff = my_val - target_val
             
             can_recapture, min_threat_val = get_min_recapture_value(board, move)
             
             if can_recapture: # If the opponent can recapture
                 if is_recapture: # If the player's move was a recapture
-                    if my_val == target_val:
-                        is_sacrifice = False
-                    elif my_val < target_val:
+                    if target_val >= my_val:
+                         # Captured equal or higher value piece
                         is_sacrifice = False
                     else:
-                        # Threatened by smaller piece : Sacrifice
-                        if min_threat_val < my_val:
-                            is_sacrifice = True
-                else:
-                    if val_diff >= 2:
+                        # Captured smaller piece with bigger piece and can be recaptured
+                        is_sacrifice = True
+                else: 
+                    if my_val - min_threat_val >= 2:
                         is_sacrifice = True
                         
     else:
@@ -261,21 +258,27 @@ def analyze_game(pgn_string: str):
     
     print("--- Analysis Start ---")
 
-    is_book = True
+    opening = True
     for i, move in enumerate(game.mainline_moves()):
-        if i // 2 >= 12 and current_opening == "Opening Move" and not is_book:
+        if i // 2 >= 12 and current_opening == "Opening Move" and not opening:
              current_opening = "No Opening"
         is_white = board.turn
         move_uci = move.uci()
         move_san = board.san(move)
         
         board.push(move)
+        # Check Book Status for current move
+        is_book = False
         opening_info = get_opening_name(board)
+        
         if opening_info:
             current_opening = opening_info.get('name', current_opening)
             is_book = True
         else:
             is_book = is_in_book(board)
+            
+        # remains True if it was already True & current move is in book
+        opening = opening and is_book
         
         # 2. Get Top Moves
         board.pop()
@@ -283,6 +286,10 @@ def analyze_game(pgn_string: str):
         
         top_moves = engine.get_top_moves(2)
         best_move = top_moves[0]['Move']
+        
+        # Convert to SAN while board is in "Before Move" state
+        best_move_san = board.san(chess.Move.from_uci(best_move))
+        
         best_score = get_score_val(top_moves[0])
 
         second_score = None
@@ -328,9 +335,10 @@ def analyze_game(pgn_string: str):
         
         classification = "Normal"
 
-        if is_book:
+        # if book move
+        if opening:
             classification = "Book"
-        
+        # if best move, check Best, Great, Forced
         elif move_uci == best_move:
             if len(top_moves) == 1:
                 classification = "Forced" # only available move
@@ -343,17 +351,18 @@ def analyze_game(pgn_string: str):
                 # 2nd best is much worse and position is balanced
                 if second_cp_loss >= 400 and -500 < my_cp < 500:
                      classification = "Great"
+        # if not best move, check Brilliant & other Classes
         else:
             classification = get_classification(win_diff)
             
             if (best_cp > 300 and my_cp < 100) or (best_cp > 2000 and my_cp < 1000) or (best_cp > 500 and cp_loss > 300 and classification != "Blunder"):
                 classification = "Miss"
             
-        # Brilliant: Sacrifice that's nearly optimal (≤50cp loss, not losing)
-        if is_sac:
-            print(f"debug: move={move_uci}, is_sac={is_sac}, cp_loss={cp_loss:.1f}, my_cp={my_cp:.1f}, is_white={is_white}")
-        if is_sac and cp_loss <= 50 and my_cp > -100:
-             classification = "Brilliant"
+            # Brilliant: Sacrifice that's nearly optimal (≤50cp loss, not losing)
+            elif is_sac:
+                print(f"debug: move={move_uci}, is_sac={is_sac}, cp_loss={cp_loss:.1f}, my_cp={my_cp:.1f}, is_white={is_white}")
+                if is_sac and cp_loss <= 50 and my_cp > -100:
+                    classification = "Brilliant"
 
 
         # 5. Accuracy Calculation 
@@ -368,7 +377,7 @@ def analyze_game(pgn_string: str):
             "score": curr_score_white,
             "classification": classification,
             "color": "white" if is_white else "black",
-            "best_move": best_move,
+            "best_move": best_move_san,
             "opening": current_opening,
             "accuracy": round(move_accuracy, 1),
             "win_chance": round(curr_win_prob, 1),
