@@ -62,45 +62,14 @@ export default function Home() {
     fetchAllData(username);
   };
 
-  const handleAnalyze = async (limit: number) => {
-    setIsAnalyzing(true);
-    try {
-      const url = `http://localhost:8000/analyze/${username}?limit=${limit}`;
-      const options = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username }),
-      };
-      await fetch(url, options);
-
-      // Artificial delay
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      alert(`Optimization started for ${username}. Data will refresh automatically.`);
-
-      fetchAllData(username);
-
-      setTimeout(() => {
-        fetchAllData(username);
-      }, 10000);
-
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Analysis failed.");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const opponentAnalyze = async (limit: number, opponent?: string) => {
+  const runAnalysis = async (limit: number, opponent?: string) => {
     setIsAnalyzing(true);
     try {
       let url = `http://localhost:8000/analyze/${username}?limit=${limit}`;
       if (opponent) {
         url += `&opponent=${opponent}`;
       }
+
       const options = {
         method: "POST",
         headers: {
@@ -108,26 +77,28 @@ export default function Home() {
         },
         body: JSON.stringify({ username }),
       };
+
+      // 1. Request Analysis
       await fetch(url, options);
 
-      // Artificial delay
+      // 2. Wait for backend batch processing
+      // We keep the loading screen up while data is being processed/fetched
       await new Promise((resolve) => setTimeout(resolve, 3000));
+      await fetchAllData(username); // First intermediate update
 
-      alert(`Optimization started for ${username}. Data will refresh automatically.`);
-
-      fetchAllData(username);
-
-      setTimeout(() => {
-        fetchAllData(username);
-      }, 10000);
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await fetchAllData(username); // Final update
 
     } catch (error) {
-      console.error("Error:", error);
-      alert("Analysis failed.");
+      console.error("Error during analysis:", error);
+      alert("Analysis failed. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
   };
+
+  const handleAnalyze = (limit: number) => runAnalysis(limit);
+  const opponentAnalyze = (limit: number, opponent?: string) => runAnalysis(limit, opponent);
 
   return (
     <div className="analysis-page">

@@ -13,13 +13,13 @@ export default function AIInsights({ insight }: AIInsightsProps) {
                 </div>
                 <div>
                     <h2 className="ai-title">AI Coach's Analysis</h2>
-                    <p className="ai-subtitle">Personalized feedback based on your recent games</p>
+                    <p className="ai-subtitle">Personalized feedback based on your game analysis</p>
                 </div>
             </div>
 
             <div className="ai-content-box">
                 <p className="ai-text">
-                    {insight || "Connect your Groq API Key to receive personalized coaching insights."}
+                    {insight || "Connect your Groq API Key to receive personalized insights."}
                 </p>
             </div>
         </div>

@@ -11,8 +11,7 @@ export default function OpponentSearch({ isAnalyzing, handleAnalyze, username }:
                 id="opponent-input"
                 type="text"
                 placeholder="Opponent Username"
-                className="game-limit-input"
-                style={{ width: '180px', textAlign: 'left' }}
+                className="game-limit-input w-48"
                 disabled={isAnalyzing}
             />
             <input
