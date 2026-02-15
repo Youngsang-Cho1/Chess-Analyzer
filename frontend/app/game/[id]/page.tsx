@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import ChessBoard from "../../components/ChessBoard";
+import { Chess } from "chess.js";
 
 interface GameData {
     id: number;
@@ -88,12 +89,40 @@ export default function GamePage() {
 
         setScore(Number((move.score / 100).toFixed(2)));
 
+        // Calculate FEN for RAG context
+        let currentFen = "";
+        try {
+            const chess = new Chess();
+            // Replay moves up to current index
+            for (let i = 0; i < index; i++) {
+                const m = analysis[i];
+                if (m) {
+                    try {
+                        chess.move(m.move_san || m.move_uci);
+                    } catch (e) {
+                        try {
+                            chess.move({ from: m.move_uci.slice(0, 2), to: m.move_uci.slice(2, 4), promotion: m.move_uci.length > 4 ? m.move_uci[4] : undefined });
+                        } catch (e2) {
+                            console.error("Move parse error:", m, e2);
+                        }
+                    }
+                }
+            }
+            currentFen = chess.fen();
+        } catch (e) {
+            console.error("FEN generation error:", e);
+        }
+
         // Fetch LLM review for this move
         setIsReviewLoading(true);
         setLlmReview("");
         try {
             const res = await fetch(`http://localhost:8000/review/move/${move.id}`, {
                 method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ fen: currentFen }),
             });
             const data = await res.json();
             setLlmReview(data.review);
@@ -161,18 +190,20 @@ export default function GamePage() {
                         {/* Current move info */}
                         {currentAnalysis && (
                             <div className="move-info-card">
-                                <span
-                                    className="classification-badge"
-                                    style={{ background: classColors[currentAnalysis.classification] || "#64748b" }}
-                                >
-                                    {currentAnalysis.classification}
-                                </span>
-                                <span className="move-detail">
-                                    Move {currentAnalysis.move_number} ({currentAnalysis.color})
-                                    {currentAnalysis.best_move && currentAnalysis.classification !== "Best" && currentAnalysis.classification !== "Book" && (
-                                        <span className="best-move-hint"> • Best: {currentAnalysis.best_move}</span>
-                                    )}
-                                </span>
+                                <div className="move-header">
+                                    <span className="move-number-title">Move {currentAnalysis.move_number} ({currentAnalysis.color})</span>
+                                    <span
+                                        className="classification-badge"
+                                        style={{ background: classColors[currentAnalysis.classification] || "#64748b" }}
+                                    >
+                                        {currentAnalysis.classification}
+                                    </span>
+                                </div>
+                                {currentAnalysis.best_move && currentAnalysis.classification !== "Best" && currentAnalysis.classification !== "Book" && (
+                                    <div className="best-move-hint">
+                                        Engine recommends: <span className="font-bold">{currentAnalysis.best_move}</span>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {analysis.map((move, i) => (

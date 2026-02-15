@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
+from rag import ChessRAG 
 
 load_dotenv()
 
@@ -9,6 +10,7 @@ load_dotenv()
 class ChessReviewer:
     def __init__(self, model="llama-3.3-70b-versatile"):
         self.llm = ChatGroq(model_name=model)
+        self.rag = ChessRAG()
         
 
         self.review_template = PromptTemplate(
@@ -49,28 +51,32 @@ Keep the tone professional. Also, Keep your answer Max. 10 sentences; keep it co
 """))
 
         self.move_template = PromptTemplate(
-            input_variables=["move_san", "classification", "move_number", "color", "score", "best_move", "opening"],
-            template=("""You are an expert chess coach explaining a single move to a student.
+            input_variables=["move_san", "classification", "move_number", "color", "score", "best_move", "opening", "rag_context"],
+            template=("""You are a chess coach. Explain a move to a student.
 
-Move Details:
-- Move: {move_san} (Move {move_number}, {color})
-- Classification: {classification}
-- Engine Evaluation after move: {score} centipawns
-- Best Move (by engine): {best_move}
-- Opening: {opening}
+Move: {move_san} (Move {move_number}, {color})
+Class: {classification}
+Engine: {score}
+Best: {best_move}
+Opening: {opening}
 
-Based on the classification '{classification}', explain:
-1. Why this move received this classification.
-2. If it's a mistake/blunder/miss, briefly explain what the best move achieves that this move doesn't.
-3. If it's a good/great/brilliant move, explain what makes it strong.
+{rag_context}
 
-It would be better if you can follow this format: this move is a {classification} because....
+Task:
+1. Explain WHY the move is a {classification}.
+2. IF there is GM context above, explicitly mention it: "In a similar position, GM [Name] played [Move]..."
+
+Desired Format:
+- If {classification} is Blunder/Mistake/Miss/Inaccuracy:
+"{move_san} is a {classification} because [reason]. [GM Context if any]. You should have played {best_move} to [reason]."
+
+- If {classification} is Good/Excellent/Best/Great/Brilliant/Book:
+"{move_san} is a {classification} move! It [why it's good]. [GM Context if any, e.g. 'GM Magnus also plays this']"
 
 Rules:
-- Keep it to 2-3 sentences MAX!!!!!!!!!
-- Be specific and actionable, not generic.
-- Use simple, direct, and concise language.
-- State all the moves in SAN format.
+- Keep it under 3 lines.
+- Natural text.
+- Be direct.
 """))
     
     def review_game(self, game_data):
@@ -102,6 +108,25 @@ Rules:
             return f"Error generating season review: {e}"
 
     def review_move(self, move_data):
+        # RAG Logic: Fetch similar games only for significant errors or misses
+        classification = move_data.get("classification", "").lower()
+        rag_context = ""
+        
+        if classification in ["blunder", "mistake", "miss", "inaccuracy"]:
+            # We need FEN to search. Assuming move_data pass 'fen' or we can't search.
+            # Wait, api.py doesn't pass 'fen' currently. We need to fetch it from DB or pass it.
+            # For now, let's assume 'fen' is in move_data or we skip RAG.
+            if "fen" in move_data:
+                rag_context = self.rag.search_similar_positions(
+                    fen=move_data["fen"], 
+                    opening=move_data.get("opening", "Unknown")
+                )
+        
+        move_data["rag_context"] = rag_context
+
+        # API endpoint in `api.py` needs to pass 'fen' to `review_move`. 
+        # I need to update `api.py` too. 
+        
         prompt = self.move_template.format(**move_data)
         try:
             response = self.llm.invoke(prompt)
