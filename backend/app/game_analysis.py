@@ -124,9 +124,9 @@ def is_sacrifice(board, move):
                         is_sacrifice = True
                 else: 
                      # Non-recapture capture (Case A): 
-                     # Sacrifice if I lose significantly more than I gain
-                     # AND I am capturing a piece of lower value (preventing winning trades from being sacrifices)
-                     if my_val - min_threat_val >= 2 and target_val < my_val:
+                     # Sacrifice if I lose significantly more than I gain (at least 2 points)
+                     # Regardless of WHO recaptures me (Pawn or Queen), if I lose a Rook(5) for a Bishop(3), I lost 2 points.
+                     if my_val - target_val >= 2:
                          is_sacrifice = True
                         
     else:
@@ -269,6 +269,15 @@ def analyze_game(pgn_string: str):
         move_uci = move.uci()
         move_san = board.san(move)
         
+        captured_piece = None
+        if board.is_capture(move):
+            if board.is_en_passant(move):
+                captured_piece = "Pawn"
+            else:
+                piece = board.piece_at(move.to_square)
+                if piece:
+                     captured_piece = chess.piece_name(piece.piece_type).capitalize()
+        
         board.push(move)
         # Check Book Status for current move
         is_book = False
@@ -361,11 +370,11 @@ def analyze_game(pgn_string: str):
             if (best_cp > 300 and my_cp < 100) or (best_cp > 2000 and my_cp < 1000) or (best_cp > 500 and cp_loss > 300 and classification != "Blunder"):
                 classification = "Miss"
             
-            # Brilliant: Sacrifice that's nearly optimal (≤50cp loss, not losing)
-            elif is_sac:
-                print(f"debug: move={move_uci}, is_sac={is_sac}, cp_loss={cp_loss:.1f}, my_cp={my_cp:.1f}, is_white={is_white}")
-                if is_sac and cp_loss <= 50 and my_cp > -100:
-                    classification = "Brilliant"
+        # Brilliant: Sacrifice that's nearly optimal (≤50cp loss, not losing)
+        if is_sac:
+            print(f"DEBUG: Brilliant SAC detected! Move: {move}, MyCP: {my_cp}, CP Loss: {cp_loss}")
+            if cp_loss <= 50 and my_cp >= -50:
+                classification = "Brilliant"
 
 
         # 5. Accuracy Calculation 
@@ -386,7 +395,8 @@ def analyze_game(pgn_string: str):
             "win_chance": round(curr_win_prob, 1),
             "cp_loss": cp_loss,
             "win_percent_before": round(prev_win_prob, 1),
-            "win_percent_after": round(curr_win_prob, 1)
+            "win_percent_after": round(curr_win_prob, 1),
+            "captured_piece": captured_piece
         }
         analysis_results.append(result)
         all_win_percentages.append(curr_win_prob)

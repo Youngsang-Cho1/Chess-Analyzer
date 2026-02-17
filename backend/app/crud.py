@@ -62,7 +62,8 @@ def save_analysis(db: Session, game_id: int, analysis_results: list):
             classification=result['classification'],
             color=result.get('color'),
             best_move=result['best_move'],
-            opening=result['opening']
+            opening=result['opening'],
+            captured_piece=result.get('captured_piece')
         )
         db.add(analysis)
     

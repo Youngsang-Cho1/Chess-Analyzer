@@ -51,32 +51,35 @@ Keep the tone professional. Also, Keep your answer Max. 10 sentences; keep it co
 """))
 
         self.move_template = PromptTemplate(
-            input_variables=["move_san", "classification", "move_number", "color", "score", "best_move", "opening", "rag_context"],
+            input_variables=["move_san", "classification", "move_number", "color", "score", "best_move", "opening", "rag_context", "captured_piece"],
             template=("""You are a chess coach. Explain a move to a student.
 
 Move: {move_san} (Move {move_number}, {color})
 Class: {classification}
-Engine: {score}
-Best: {best_move}
+Captured Piece: {captured_piece} (If None, no capture)
+Engine Score: {score} (Centipawns. Positive = White advantage)
+Best Move Suggested: {best_move}
 Opening: {opening}
 
+Relevant GM Games (Context):
 {rag_context}
 
 Task:
 1. Explain WHY the move is a {classification}.
-2. IF there is GM context above, explicitly mention it: "In a similar position, GM [Name] played [Move]..."
+   - If {classification} is **Brilliant**: It's likely a sacrifice. Explain what was given up and what compensation was gained (attack, mate threat, positional dominance).
+   - If {classification} is **Blunder/Mistake**: Explain why the played move is bad compared to the Best Move ({best_move}).
+   - If Captured Piece is present, mention it explicitly (e.g., "captured a {captured_piece}").
+
+2. **CRITICAL RULE about GM Context**:
+   - IF `{rag_context}` is provided and meaningful, you MAY say: "In a similar position, GM [Name] played..."
+   - IF `{rag_context}` is EMPTY or irrelevant, **DO NOT MENTION GM GAMES AT ALL.** Do not invent or hallucinate GM moves.
+   - Focus on the engine's reason instead.
 
 Desired Format:
-- If {classification} is Blunder/Mistake/Miss/Inaccuracy:
-"{move_san} is a {classification} because [reason]. [GM Context if any]. You should have played {best_move} to [reason]."
-
-- If {classification} is Good/Excellent/Best/Great/Brilliant/Book:
-"{move_san} is a {classification} move! It [why it's good]. [GM Context if any, e.g. 'GM Magnus also plays this']"
-
-Rules:
 - Keep it under 3 lines.
-- Natural text.
-- Be direct.
+- Be direct and educational.
+- "Great move! You sacrificed a Rook to expose the King..." (if Brilliant)
+- "That was a mistake. You lost a Knight for nothing. {best_move} would have saved it." (if Blunder)
 """))
     
     def review_game(self, game_data):
@@ -112,20 +115,18 @@ Rules:
         classification = move_data.get("classification", "").lower()
         rag_context = ""
         
-        if classification in ["blunder", "mistake", "miss", "inaccuracy"]:
-            # We need FEN to search. Assuming move_data pass 'fen' or we can't search.
-            # Wait, api.py doesn't pass 'fen' currently. We need to fetch it from DB or pass it.
-            # For now, let's assume 'fen' is in move_data or we skip RAG.
-            if "fen" in move_data:
+        # Only use RAG for blunders/mistakes where advice is needed
+        if classification in ["blunder", "mistake", "miss"]:
+            if "fen" in move_data and move_data["fen"]:
                 rag_context = self.rag.search_similar_positions(
                     fen=move_data["fen"], 
                     opening=move_data.get("opening", "Unknown")
                 )
         
         move_data["rag_context"] = rag_context
-
-        # API endpoint in `api.py` needs to pass 'fen' to `review_move`. 
-        # I need to update `api.py` too. 
+        # Ensure captured_piece is string
+        if not move_data.get("captured_piece"):
+            move_data["captured_piece"] = "None"
         
         prompt = self.move_template.format(**move_data)
         try:

@@ -1,26 +1,17 @@
 
+# Python
 __pycache__
 *.pyc
 *.pyo
-*.pyd
-.Python
-
-.env
-env/
+venv
 .venv
+env
+.env
+.ipynb_checkpoints
 
+# Git
 .git
 .gitignore
-
-.dockerignore
-Dockerfile
-docker-compose.yml
-
-# AI / Large Files
-*.gguf
-*.bin
-.cache/
-.idea
 
 # Frontend (Backend Docker shouldn't care about this)
 frontend
@@ -29,5 +20,3 @@ frontend
 *.sqlite3
 postgres_data
 data
-app/data
-**/data

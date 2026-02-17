@@ -104,6 +104,7 @@ def review_move(move_id: int, request: ReviewRequest):
         "score": move.score,
         "best_move": move.best_move or "N/A",
         "opening": move.opening or "Unknown",
+        "captured_piece": move.captured_piece, # Added
         "fen": request.fen # Pass FEN to reviewer for RAG
     }
     review = reviewer.review_move(move_data)
