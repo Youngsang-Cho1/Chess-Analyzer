@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
-from rag import ChessRAG 
 
 load_dotenv()
 
@@ -10,8 +9,6 @@ load_dotenv()
 class ChessReviewer:
     def __init__(self, model="llama-3.3-70b-versatile"):
         self.llm = ChatGroq(model_name=model)
-        self.rag = ChessRAG()
-        
 
         self.review_template = PromptTemplate(
             input_variables=["player", "accuracy", "blunders", "mistakes", "opening"],
@@ -51,39 +48,33 @@ Keep the tone professional. Also, Keep your answer Max. 10 sentences; keep it co
 """))
 
         self.move_template = PromptTemplate(
-            input_variables=["move_san", "classification", "move_number", "color", "score", "best_move", "opening", "rag_context", "captured_piece"],
-            template=("""You are a chess coach. Explain a move to a student.
+            input_variables=["move_san", "classification", "move_number", "color", "score", "best_move", "opening", "captured_piece"],
+            template=("""You are a chess coach. Explain a single move to a student.
 
-Move: {move_san} (Move {move_number}, {color})
-Class: {classification}
-Captured Piece: {captured_piece} (If None, no capture)
-Engine Score: {score} (Centipawns. Positive = White advantage)
-Best Move Suggested: {best_move}
+Move Played: {move_san} (Move {move_number}, {color})
+Classification: {classification}
+Captured Piece: {captured_piece}
+Engine Score After Move: {score} cp (Positive = White advantage)
+Engine's Best Move: {best_move}
 Opening: {opening}
 
-Relevant GM Games (Context):
-{rag_context}
-
 Task:
-1. Explain WHY the move is a {classification}.
-   - If {classification} is **Brilliant**: It's likely a sacrifice. Explain what was given up and what compensation was gained (attack, mate threat, positional dominance).
-   - If {classification} is **Blunder/Mistake**: Explain why the played move is bad compared to the Best Move ({best_move}).
-   - If Captured Piece is present, mention it explicitly (e.g., "captured a {captured_piece}").
+Explain WHY this move is classified as "{classification}".
 
-2. **CRITICAL RULE about GM Context**:
-   - IF `{rag_context}` is provided and meaningful, you MAY say: "In a similar position, GM [Name] played..."
-   - IF `{rag_context}` is EMPTY or irrelevant, **DO NOT MENTION GM GAMES AT ALL.** Do not invent or hallucinate GM moves.
-   - Focus on the engine's reason instead.
+Guidelines by classification:
+- **Brilliant**: A sacrifice. Explain what piece was given up and what was gained (attack, mate threat, positional pressure). Mention the captured piece if applicable.
+- **Best/Excellent/Great/Book**: Briefly explain why this is a strong move.
+- **Blunder/Mistake/Miss**: Explain what went wrong. Then explain why {best_move} would have been better.
+- **Good/Inaccuracy**: Brief explanation of the move quality.
 
-Desired Format:
-- Keep it under 3 lines.
+Rules:
+- Keep it under 3 sentences.
 - Be direct and educational.
-- "Great move! You sacrificed a Rook to expose the King..." (if Brilliant)
-- "That was a mistake. You lost a Knight for nothing. {best_move} would have saved it." (if Blunder)
+- Do NOT mention any GM games or GM names. Focus only on the engine analysis.
+- Do NOT invent or guess information not provided above.
 """))
     
     def review_game(self, game_data):
-        # Fill template with actual data
         prompt = self.review_template.format(**game_data)
         try:
             response = self.llm.invoke(prompt)
@@ -92,7 +83,6 @@ Desired Format:
             return f"Error generating review: {e}"
 
     def review_season(self, stats):
-        # Extract clean data for prompt
         data = {
             "username": stats['username'],
             "style": stats['style'],
@@ -111,22 +101,8 @@ Desired Format:
             return f"Error generating season review: {e}"
 
     def review_move(self, move_data):
-        # RAG Logic: Fetch similar games only for significant errors or misses
-        classification = move_data.get("classification", "").lower()
-        rag_context = ""
-        
-        # Only use RAG for blunders/mistakes where advice is needed
-        if classification in ["blunder", "mistake", "miss"]:
-            if "fen" in move_data and move_data["fen"]:
-                rag_context = self.rag.search_similar_positions(
-                    fen=move_data["fen"], 
-                    opening=move_data.get("opening", "Unknown")
-                )
-        
-        move_data["rag_context"] = rag_context
-        # Ensure captured_piece is string
         if not move_data.get("captured_piece"):
-            move_data["captured_piece"] = "None"
+            move_data["captured_piece"] = "None (not a capture)"
         
         prompt = self.move_template.format(**move_data)
         try:

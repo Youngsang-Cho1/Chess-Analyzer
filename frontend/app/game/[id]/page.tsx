@@ -117,13 +117,7 @@ export default function GamePage() {
         setIsReviewLoading(true);
         setLlmReview("");
         try {
-            const res = await fetch(`http://localhost:8000/review/move/${move.id}`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ fen: currentFen }),
-            });
+            const res = await fetch(`http://localhost:8000/review/move/${move.id}`);
             const data = await res.json();
             setLlmReview(data.review);
         } catch {

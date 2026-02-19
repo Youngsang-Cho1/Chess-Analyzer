@@ -6,8 +6,6 @@ from sqlalchemy import or_
 from batch import process_user_games
 from player_stats import get_player_stats
 from llm_reviewer import ChessReviewer
-from pydantic import BaseModel
-from typing import Optional
 
 reviewer = ChessReviewer()
 
@@ -85,11 +83,8 @@ def get_moves(username: str, classification: str):
     return {"moves": res}
 
 
-class ReviewRequest(BaseModel):
-    fen: Optional[str] = None
-
-@app.post("/review/move/{move_id}")
-def review_move(move_id: int, request: ReviewRequest):
+@app.get("/review/move/{move_id}")
+def review_move(move_id: int):
     db = SessionLocal()
     move = db.query(MoveAnalysis).filter(MoveAnalysis.id == move_id).first()
     db.close()
@@ -104,8 +99,7 @@ def review_move(move_id: int, request: ReviewRequest):
         "score": move.score,
         "best_move": move.best_move or "N/A",
         "opening": move.opening or "Unknown",
-        "captured_piece": move.captured_piece, # Added
-        "fen": request.fen # Pass FEN to reviewer for RAG
+        "captured_piece": move.captured_piece,
     }
     review = reviewer.review_move(move_data)
     return {"review": review}

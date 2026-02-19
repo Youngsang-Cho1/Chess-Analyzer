@@ -42,4 +42,4 @@ class MoveAnalysis(Base):
     color = Column(String) # "white" or "black"
     best_move = Column(String)
     opening = Column(String)
-    captured_piece = Column(String) # e.g. "Pawn", "Knight", "Bishop"
+    captured_piece = Column(String) 
