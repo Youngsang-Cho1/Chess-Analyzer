@@ -22,7 +22,7 @@ docker-compose.yml
 .cache/
 .idea
 
-# Frontend (Backend Docker shouldn't care about this)
+# Frontend
 frontend
 
 # Data

@@ -1,7 +1,5 @@
 import chromadb
 from chromadb.utils import embedding_functions
-from chess_utils import get_board_description
-import chess
 
 CHROMA_DATA_PATH = "./data/chroma_db"
 
@@ -10,56 +8,43 @@ class ChessRAG:
         try:
             self.client = chromadb.PersistentClient(path=CHROMA_DATA_PATH)
             self.ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-            self.collection = self.client.get_collection(
-                name="chess_games",
-                embedding_function=self.ef
-            )
             print("RAG: ChromaDB connected successfully.")
         except Exception as e:
             print(f"RAG: Error connecting to ChromaDB: {e}")
-            self.collection = None
+            self.client = None
 
-    def search_similar_positions(self, fen: str, opening: str, limit: int = 3) -> str:
-        if not self.collection:
-            return "RAG System unavailable."
+    def _get_collection(self, name: str):
+        """Try to get a collection; returns None if it doesn't exist."""
+        if not self.client:
+            return None
+        try:
+            return self.client.get_collection(name=name, embedding_function=self.ef)
+        except Exception:
+            return None
+
+    def search_opening_theory(self, opening_name: str) -> str:
+        """Retrieve theory for the given opening by name similarity."""
+        collection = self._get_collection("opening_theory")
+        if not collection:
+            return ""
 
         try:
-            # 1. Convert FEN to Description
-            board = chess.Board(fen)
-            query_text = get_board_description(board, opening)
-            
-            # 2. Query Vector DB
-            results = self.collection.query(
-                query_texts=[query_text],
-                n_results=limit
+            results = collection.query(
+                query_texts=[opening_name],
+                n_results=1
             )
-            
-            # 3. Format Results
-            if not results['metadatas'] or not results['metadatas'][0]:
-                return "No similar GM games found."
+            if results and results["documents"] and results["documents"][0]:
+                doc = results["documents"][0][0]
+                opening = results["metadatas"][0][0].get("opening", "")
+                distance = results["distances"][0][0]
 
-            context = "Here are similar situations from GM games:\n"
-            found = False
-            
-            for i, meta in enumerate(results['metadatas'][0]):
-                # Filter by distance if needed, but for now just take top results
-                dist = results['distances'][0][i]
-                if dist > 1.5: # Arbitrary threshold, tune later
-                    continue
-                
-                white = meta.get('white', '?')
-                black = meta.get('black', '?')
-                next_move = meta.get('next_move', 'Unknown')
-                result = meta.get('result', '*')
-                
-                context += f"- In {white} vs {black} ({result}), the GM played **{next_move}**.\n"
-                found = True
-            
-            if not found:
-                return "No highly similar GM games found."
-                
-            return context
-
+                # Only use if reasonably similar (distance < 1.0 on cosine space)
+                if distance < 1.0:
+                    # Strip the "Opening: ..." header line and return just the theory text
+                    lines = doc.split("\n\n", 1)
+                    theory = lines[1] if len(lines) > 1 else doc
+                    return f"[{opening} Theory]: {theory}"
+            return ""
         except Exception as e:
-            print(f"RAG Search Error: {e}")
-            return "Error retrieving similar games."
+            print(f"RAG Opening Search Error: {e}")
+            return ""

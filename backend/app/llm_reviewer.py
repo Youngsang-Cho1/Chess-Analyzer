@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
+from rag import ChessRAG
 
 load_dotenv()
 
@@ -9,6 +10,7 @@ load_dotenv()
 class ChessReviewer:
     def __init__(self, model="llama-3.3-70b-versatile"):
         self.llm = ChatGroq(model_name=model)
+        self.rag = ChessRAG()
 
         self.review_template = PromptTemplate(
             input_variables=["player", "accuracy", "blunders", "mistakes", "opening"],
@@ -48,7 +50,7 @@ Keep the tone professional. Also, Keep your answer Max. 10 sentences; keep it co
 """))
 
         self.move_template = PromptTemplate(
-            input_variables=["move_san", "classification", "move_number", "color", "score", "best_move", "opening", "captured_piece"],
+            input_variables=["move_san", "classification", "move_number", "color", "score", "best_move", "opening", "captured_piece", "opening_theory"],
             template=("""You are a chess coach. Explain a single move to a student.
 
 Move Played: {move_san} (Move {move_number}, {color})
@@ -58,22 +60,24 @@ Engine Score After Move: {score} cp (Positive = White advantage)
 Engine's Best Move: {best_move}
 Opening: {opening}
 
+{opening_theory}
+
 Task:
 Explain WHY this move is classified as "{classification}".
 
 Guidelines by classification:
-- **Brilliant**: A sacrifice. Explain what piece was given up and what was gained (attack, mate threat, positional pressure). Mention the captured piece if applicable.
-- **Best/Excellent/Great/Book**: Briefly explain why this is a strong move.
-- **Blunder/Mistake/Miss**: Explain what went wrong. Then explain why {best_move} would have been better.
-- **Good/Inaccuracy**: Brief explanation of the move quality.
+- **Brilliant**: Briefly explain the sacrifice and the compensation (attack, position).
+- **Blunder/Mistake/Miss**: Explain the critical error and why {best_move} was better.
+- **Good/Best/Excellent**: Briefly note why it's good (space, development, tactics).
 
-Rules:
-- Keep it under 3 sentences.
-- Be direct and educational.
-- Do NOT mention any GM games or GM names. Focus only on the engine analysis.
-- Do NOT invent or guess information not provided above.
+CRITICAL RULES FOR RESPONSE:
+1. MAX 2 SHORT SENTENCES. 
+2. Be extremely punchy and direct. No conversational filler like "This move is classified as...". Just say exactly what happened.
+3. Example Good: "It's a blunder since you hung your Knight on f3. Playing Qe2 would have defended it while controlling the center."
+4. If opening theory is provided, weave it naturally into ONE of the sentences, but DO NOT make it longer.
+5. NO markdown, NO bold, NO lists. Plain text only.
 """))
-    
+
     def review_game(self, game_data):
         prompt = self.review_template.format(**game_data)
         try:
@@ -92,7 +96,7 @@ Rules:
             "blunder": stats['classifications'].get('Blunder', 0),
             "total_games": stats['total_games']
         }
-        
+
         prompt = self.season_template.format(**data)
         try:
             response = self.llm.invoke(prompt)
@@ -101,9 +105,20 @@ Rules:
             return f"Error generating season review: {e}"
 
     def review_move(self, move_data):
+        # Ensure captured_piece is a string
         if not move_data.get("captured_piece"):
             move_data["captured_piece"] = "None (not a capture)"
-        
+
+        # Fetch opening theory from RAG
+        opening_name = move_data.get("opening", "")
+        opening_theory = ""
+        if opening_name and opening_name not in ("Unknown", "Opening Move", "No Opening"):
+            theory = self.rag.search_opening_theory(opening_name)
+            if theory:
+                opening_theory = f"Opening Theory Context:\n{theory}"
+
+        move_data["opening_theory"] = opening_theory
+
         prompt = self.move_template.format(**move_data)
         try:
             response = self.llm.invoke(prompt)

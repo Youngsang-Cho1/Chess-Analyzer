@@ -1,0 +1,162 @@
+[
+  {
+    "opening": "Sicilian Defense",
+    "content": "The Sicilian Defense (1.e4 c5) creates an asymmetric pawn structure. Black fights for the d4 square and counterplays on the queenside with ...a6, ...b5. White typically attacks on the kingside. Key plans: Black should control d5, look for ...e5 or ...d5 break when ready. Common mistakes: developing the queen's bishop before the knight on c6, or playing passively and letting White attack unchallenged."
+  },
+  {
+    "opening": "Sicilian Defense Najdorf",
+    "content": "The Najdorf Variation (1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 a6) is Black's sharpest response. The ...a6 move prevents Nb5 and supports ...b5 expansion. Black aims for sharp counterplay. Key plans: ...e5 to gain space, ...b5 queenside expansion, ...Be6 development. Avoid premature ...b4 without sufficient preparation."
+  },
+  {
+    "opening": "Sicilian Defense Dragon",
+    "content": "The Dragon Variation features ...g6 and the fianchettoed bishop on g7. Black's dragon bishop is extremely powerful controlling the long diagonal. Key plans: ...Nc4 to exchange White's strong dark-squared bishop, attack down the c-file after castling, play ...Rfc8. Common mistake: neglecting kingside defense while attacking queenside."
+  },
+  {
+    "opening": "Sicilian Defense Scheveningen",
+    "content": "The Scheveningen features ...e6 giving Black a solid but slightly cramped position. Black aims to consolidate and then counterattack. Key plans: play ...d5 when possible to free the position, develop the queen's bishop via ...Be7 or ...Bd7, use the c5 square for pieces. Avoid passive play; actively look for ...d5 and ...e5 breaks."
+  },
+  {
+    "opening": "French Defense",
+    "content": "The French Defense (1.e4 e6) leads to a solid but somewhat passive structure for Black, with the key tension in the center. Black's main challenge is the light-squared bishop locked behind the e6 pawn. Key plans: play ...c5 to challenge White's center, look for ...f6 in the right moment, trade off the bad light-squared bishop via ...b6 and ...Ba6. Common mistake: allowing White to build an unstoppable kingside attack with h4-h5."
+  },
+  {
+    "opening": "French Defense Winawer",
+    "content": "The Winawer Variation (1.e4 e6 2.d4 d5 3.Nc3 Bb4) pins the knight and creates imbalance. After 4.e5, the position becomes very sharp with blocked center. Key plans: Black should attack White's pawn chain with ...c5, expand on the queenside, use the c-file. White typically attacks with h4-h5. Avoid being passive on the queenside."
+  },
+  {
+    "opening": "Caro-Kann Defense",
+    "content": "The Caro-Kann (1.e4 c6) gives Black a solid pawn structure without the 'bad' bishop problem. The c8 bishop gets freedom after ...d5 and ...dxe4. Key plans: maintain strong pawn structure, develop the light-squared bishop actively, aim for ...c5 break in the middlegame, play ...Nd7-f6 or ...Nd7-b6 maneuvers. Avoid passivity; Caro-Kann is solid but not passive."
+  },
+  {
+    "opening": "Caro-Kann Defense Classical",
+    "content": "The Classical Caro-Kann (4...Bf5) fights for the light squares. Black's bishop on f5 is active. Key plans: castle queenside for queenside pawn storm against White's king, use the half-open c and d files, play ...Nd7 to support ...e5 push. Avoid losing the strong f5 bishop without compensation."
+  },
+  {
+    "opening": "Pirc Defense",
+    "content": "The Pirc Defense (1.e4 d6 2.d4 Nf6 3.Nc3 g6) is hypermodern, letting White build a big center then undermining it. Black's fianchettoed bishop targets the center from g7. Key plans: ...c5 to challenge d4, ...e5 when the time is right, castle kingside for safety, aim for ...Nfd7 and ...f5 counterplay. Avoid passively waiting without a clear plan."
+  },
+  {
+    "opening": "King's Indian Defense",
+    "content": "The King's Indian Defense (1.d4 Nf6 2.c4 g6 3.Nc3 Bg7 4.e4 d6 5.Nf3 0-0) is Black's most dynamic response to 1.d4. Black lets White have a broad center and attacks it. Key plans: ...e5 to challenge the center (the main strategic idea), kingside attack with ...f5-f4, ...Nf4 knight placement. White typically expands on the queenside. Avoid early piece trades that reduce attacking chances."
+  },
+  {
+    "opening": "King's Indian Defense Classical",
+    "content": "The Classical KID features 6.Be2 with White consolidating the center. Black typically plays ...e5 and ...Nbd7. Key plans: ...Nc5 to pressure d3, ...f5-f4 kingside pawn storm, ...Re8 to support ...e4 push. Common mistake: allowing White's d5 advance that cuts off counterplay."
+  },
+  {
+    "opening": "Nimzo-Indian Defense",
+    "content": "The Nimzo-Indian (1.d4 Nf6 2.c4 e6 3.Nc3 Bb4) pins the b3 knight and prepares to fight for d4. Black aims to win the bishop pair or create doubled pawns on White's c-file. Key plans: ...d5 to challenge the center, ...0-0 with ...Re8 to maintain bishop pair pressure, ...c5 break when the position opens. Avoid releasing the tension with ...Bxc3 without getting sufficient compensation."
+  },
+  {
+    "opening": "Queen's Gambit",
+    "content": "The Queen's Gambit (1.d4 d5 2.c4) offers a pawn to control the center. Key plans for White: establish ideal center with e4, attack with minority attack on queenside (a4, b4, b5). Key plans for Black (declined): solid center with ...e6, develop pieces actively, play ...c5 or ...e5 breaks. Avoid passive piece placement; always look for active counterplay."
+  },
+  {
+    "opening": "Queen's Gambit Accepted",
+    "content": "After 2...dxc4, Black accepts the gambit but White regains the pawn quickly. Black gets fighting chances in the center. Key plans for Black: play ...e5 or ...c5 quickly to fight for the center, develop bishop to e6 or b7, avoid passive defense. White should not chase the c4 pawn immediately but develop and castle first."
+  },
+  {
+    "opening": "Queen's Gambit Declined",
+    "content": "The QGD (2...e6) gives Black a solid but slightly passive position. The problem is the light-squared bishop locked behind the e6 pawn. Key plans: play ...c5 to free the position, trade the bad bishop with ...Bd6 or via ...dxc4 and ...Bb4, aim for ...e5 break. Common mistake: being too passive and allowing White's perfect center without counterplay."
+  },
+  {
+    "opening": "Ruy Lopez",
+    "content": "The Ruy Lopez (1.e4 e5 2.Nf3 Nc6 3.Bb5) is one of chess's oldest openings. White pressures e5 via the pinned c6 knight. Key plans for Black: ...d6 (Berlin or Morphy Defense), fight for the center, look for ...d5 counterattack. For White: dominate the center, use the space advantage. Avoid losing the center or allowing the famous Berlin ending."
+  },
+  {
+    "opening": "Ruy Lopez Open",
+    "content": "The Open Ruy Lopez (3...a6 4.Ba4 Nf6 5.0-0 Nxe4) is Black's sharpest answer. After taking the e4 pawn, Black must defend accurately. Key plans: develop pieces quickly, play ...Be7 and ...0-0, use the half-open e-file. Common mistake: getting greedy with pawns instead of completing development and castling."
+  },
+  {
+    "opening": "Italian Game",
+    "content": "The Italian Game (1.e4 e5 2.Nf3 Nc6 3.Bc4) attacks f7 directly. Modern play leads to complex middlegames. Key plans for White: d3, c3, d4 center expansion, use the c4 bishop's diagonal. Key plans for Black: ...Nf6 development, ...d6 solid setup, or ...Be7 with kingside castle. Avoid passive development; fight for central control early."
+  },
+  {
+    "opening": "Italian Game Giuoco Piano",
+    "content": "The Giuoco Piano (3...Bc5) mirrors White's bishop. The position typically becomes a battle for d4. Key plans: castle kingside early, battle for center with c3-d4, use the open diagonals. Black can play the Evan's Gambit declined setup. Common mistake: leaving the center unresolved and allowing opponent to dominate with d4."
+  },
+  {
+    "opening": "Nimzowitsch Defense",
+    "content": "The Nimzowitsch Defense (1.e4 Nc6) is an unusual hypermodern opening challenging White's e4. Black avoids ...e5 and fights for d4 with pieces. Key plans: ...d5 to challenge the center, ...e5 if White doesn't occupy the center, piece activity over pawn structure. Common mistake: being too passive and allowing White to build a massive center unchallenged."
+  },
+  {
+    "opening": "Scotch Game",
+    "content": "The Scotch Game (1.e4 e5 2.Nf3 Nc6 3.d4) immediately challenges the center. After 3...exd4 4.Nxd4, the center opens and the game becomes tactical. Key plans for Black: ...Nf6 or ...Bc5 for piece activity, fight for d4, avoid passive positions. For White: use the half-open d-file, attack with Nxc6 followed by e5 pushing the knight."
+  },
+  {
+    "opening": "Petrov Defense",
+    "content": "The Petrov Defense (1.e4 e5 2.Nf3 Nf6) is known for its solid and somewhat drawish nature. Black mirrors White's knight development. Key plans: after 3.Nxe5, Black must play 3...d6 not 3...Nxe4 immediately. Aim for equality and active piece play. Common mistake: playing passively, leading to a very dry position without counterplay."
+  },
+  {
+    "opening": "King's Pawn Opening",
+    "content": "Starting with 1.e4, the King's Pawn Opening immediately fights for the center. White's main advantage is the open position for the bishop and queen. Key ideas: control the center with pawns and pieces, castle quickly, fight for the e5 and d5 squares. The most critical response for Black is 1...e5 (symmetric) or the Sicilian 1...c5 for asymmetric play."
+  },
+  {
+    "opening": "Queen's Pawn Opening",
+    "content": "The Queen's Pawn Opening (1.d4) leads to solid, strategic positions. Central control is key. Key plans for White: expand with c4, develop the dark-squared bishop via Be3 or Bf4, use the long-term space advantage. Black should actively counterattack with ...c5, ...d5, or hypermodern setups like the King's Indian or Nimzo-Indian."
+  },
+  {
+    "opening": "London System",
+    "content": "The London System (1.d4, 2.Nf3, 3.Bf4) is a solid setup for White. Key plans: Bf4 bishop is the cornerstone - protect it and expand with e3, c3, Bd3. Attack with h4-h5 on the kingside if Black castles there. Avoid trading off the dark-squared bishop without compensation, and don't let Black achieve the ...e5 freeing move unchallenged."
+  },
+  {
+    "opening": "English Opening",
+    "content": "The English Opening (1.c4) controls d5 from a distance and can transpose into many systems. Key plans: fight for d5 with ...e5 or ...d5, use the half-open c-file, develop pieces harmoniously. Black can mirror with the reversed Sicilian or play ...e5 for symmetry. Avoid passive setups; actively fight for central squares."
+  },
+  {
+    "opening": "Reti Opening",
+    "content": "The Reti Opening (1.Nf3 followed by g3 and Bg2) is hypermodern - White fianchettoes and controls the center from a distance. Key plans: pressure d5 and e5 from afar, use the g2 bishop's diagonal, transpose into favorable structures. Black should actively occupy the center with ...d5 and ...e5 to challenge White's indirect control."
+  },
+  {
+    "opening": "Catalan Opening",
+    "content": "The Catalan Opening (1.d4 Nf6 2.c4 e6 3.g3 followed by Bg2) combines the fianchettoed bishop with a broad center. The g2 bishop is extremely powerful. Key plans for White: use the bishop's long-diagonal pressure, centralize after Black captures on c4, play Qc2 and e4 for center expansion. Black must be active to avoid being squeezed."
+  },
+  {
+    "opening": "Grunfeld Defense",
+    "content": "The Grunfeld Defense (1.d4 Nf6 2.c4 g6 3.Nc3 d5) is Black's most combative response to 1.d4. Black allows White a big center and attacks it with pieces. Key plans: trade on c4 and attack d4 with ...c5, use the g7 bishop's power on the long diagonal, be active and counterattacking. Avoid passive play; the Grunfeld lives and dies on counterattacking chances."
+  },
+  {
+    "opening": "Dutch Defense",
+    "content": "The Dutch Defense (1.d4 f5) immediately fights for the e4 square. Black aims for kingside attack with ...g5-g4 in the Leningrad, or solid play in the Classical. Key plans: control e4, use f5 pawn as attacking spearhead, castle and attack. Common mistake: neglecting development in favor of early pawn storms, leaving the king exposed."
+  },
+  {
+    "opening": "Benko Gambit",
+    "content": "The Benko Gambit (1.d4 Nf6 2.c4 c5 3.d5 b5) sacrifices a pawn for long-term queenside pressure. Key plans: after 4.cxb5 a6 5.bxa6 Bxa6, use the open a and b files, fianchetto the bishop on g7, exert lasting queenside pressure. Avoid early exchanges that reduce the pressure; the gambit is only worth it if you maintain activity."
+  },
+  {
+    "opening": "Budapest Gambit",
+    "content": "The Budapest Gambit (1.d4 Nf6 2.c4 e5) sacrifices a pawn for very active piece play. Key plans: attack immediately after the gambit is accepted, use the f2 pawn weakness, develop fast. White should return the pawn for equality or enter a complex ending. The gambit is dangerous if White tries to hold the extra pawn naively."
+  },
+  {
+    "opening": "King's Gambit",
+    "content": "The King's Gambit (1.e4 e5 2.f4) offers a pawn for rapid development and open lines. Key plans for White: rapid development after exf4 is accepted, attack f7 with Bc4 and Qh5, use the open f-file. Key plans for Black: return the pawn for development with ...d5, give up the material for solid play. Common mistake: trying to hold the extra f4 pawn instead of developing."
+  },
+  {
+    "opening": "Alekhine Defense",
+    "content": "The Alekhine Defense (1.e4 Nf6) invites White to chase the knight to gain a big center, which Black then attacks. Key plans: ...d6, ...c5 to hit the big center; use piece activity to compensate for lack of center pawns. Common mistake: waiting passively and letting White's big center become strong rather than immediately attacking it."
+  },
+  {
+    "opening": "Modern Defense",
+    "content": "The Modern Defense (1.e4 g6) is hypermodern - Black allows a large center then attacks it. Key plans: fianchetto bishop on g7 for tremendous pressure, undermine center with ...c5 or ...d5, counterattack before White's center becomes too strong. Avoid neglecting development; the Modern requires very active piece play to be successful."
+  },
+  {
+    "opening": "Scandinavian Defense",
+    "content": "The Scandinavian Defense (1.e4 d5) immediately challenges White's center. After 2.exd5 Qxd5, Black develops the queen early. Key plans: ...Qd8 to retreat safely (modern line), develop quickly after ...Qa5 or ...Qd6, fight for c4 and e4 squares, castle quickly. Common mistake: wasting time moving the queen multiple times in the opening."
+  },
+  {
+    "opening": "Three Knights Game",
+    "content": "The Three Knights Game (1.e4 e5 2.Nf3 Nc6 3.Nc3) is solid. Key plans for White: d4 center expansion, use piece coordination, aim for the four knights game or Winawer attack. Black should equalize with ...Nf6 (four knights), or try for sharper play with ...Bc5 or ...Bb4. Avoid passive development and fight for equal center control."
+  },
+  {
+    "opening": "Four Knights Game",
+    "content": "The Four Knights Game (1.e4 e5 2.Nf3 Nc6 3.Nc3 Nf6) is highly symmetrical and often drawish at top level. Key plans: break the symmetry early with an active move, use pins (Bb5) to create imbalances. The Belgrade Gambit (4.d4) is aggressive alternative. Avoid fully symmetric play which leads to dull equality."
+  },
+  {
+    "opening": "Slav Defense",
+    "content": "The Slav Defense (1.d4 d5 2.c4 c6) is one of Black's most solid responses. Unlike QGD, the light-squared bishop has access via a6. Key plans: maintain solid d5 pawn, develop the light-squared bishop actively via Bf5, play ...e6 for solidity or ...dxc4 for the Semi-Slav. Avoid passive play; look for ...e5 or ...c5 breaks to free the position."
+  },
+  {
+    "opening": "Semi-Slav Defense",
+    "content": "The Semi-Slav (1.d4 d5 2.c4 c6 3.Nf3 e6) combines Slav and QGD features. Key plans: fight with ...dxc4 in the Meran Variation, use both bishops actively, look for ...e5 or ...c5 breaks. The Marshall Gambit and Noteboom Variation are very sharp. Avoid passive development which leads to a cramped position."
+  }
+]

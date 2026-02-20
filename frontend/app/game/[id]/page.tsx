@@ -61,12 +61,44 @@ export default function GamePage() {
         fetchGame();
     }, [params.id]);
 
+    // arrow key event listener
+    useEffect(() => {
+        const handleKeyPressed = (event: KeyboardEvent) => {
+            if (event.key === "ArrowRight") {
+                if (currentMoveIndex < analysis.length) {
+                    handleMoveClick(currentMoveIndex + 1);
+                }
+            } else if (event.key === "ArrowLeft") {
+                if (currentMoveIndex > 0) {
+                    handleMoveClick(currentMoveIndex - 1);
+                }
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyPressed);
+        return () => {
+            window.removeEventListener("keydown", handleKeyPressed);
+        };
+    }, [currentMoveIndex, analysis.length]);
+
     // Auto-scroll move list to current move
     useEffect(() => {
         if (moveListRef.current) {
-            const activeItem = moveListRef.current.querySelector(".move-active");
+            const activeItem = moveListRef.current.querySelector(".move-active") as HTMLElement;
             if (activeItem) {
-                activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
+                const container = moveListRef.current;
+                const containerRect = container.getBoundingClientRect();
+                const itemRect = activeItem.getBoundingClientRect();
+
+                // Calculate position to center the item perfectly within the container
+                const itemCenter = itemRect.top + (itemRect.height / 2);
+                const containerCenter = containerRect.top + (containerRect.height / 2);
+
+                // Scroll only the container by the difference
+                container.scrollBy({
+                    top: itemCenter - containerCenter,
+                    behavior: "smooth"
+                });
             }
         }
     }, [currentMoveIndex]);
@@ -146,7 +178,7 @@ export default function GamePage() {
                 </p>
 
                 <div className="review-layout">
-                    {/* Left: ChessBoard + Move Info + LLM Review */}
+                    {/* Left: ChessBoard */}
                     <div className="review-board">
                         <ChessBoard
                             chess_PGN={game.pgn}
@@ -155,70 +187,71 @@ export default function GamePage() {
                         />
                     </div>
 
-                    {/* Right: Move List */}
-                    <div className="review-moves" ref={moveListRef}>
-                        <h3 className="moves-header">Moves</h3>
-                        <div className="score-container">
-                            <span className="score-label">Score:</span>
-                            <span className="score-value">{score}</span>
+                    {/* Right: Move List (Moves, Score, LLM Review, Move Info) */}
+                    <div className="review-moves">
+                        {/* Sticky Header Section */}
+                        <div className="review-moves-sticky">
+                            <h3 className="moves-header">Moves</h3>
+                            <div className="score-container" style={{ marginBottom: '1rem' }}>
+                                <span className="score-label">Score:</span>
+                                <span className="score-value">{score}</span>
+                            </div>
+
+                            {/* LLM Review */}
+                            {isReviewLoading && (
+                                <div className="llm-review-card">
+                                    <div className="review-loading">
+                                        <span className="loading-dot"></span>
+                                        <span className="loading-dot"></span>
+                                        <span className="loading-dot"></span>
+                                        Reviewing...
+                                    </div>
+                                </div>
+                            )}
+                            {llmReview && !isReviewLoading && (
+                                <div className="llm-review-card">
+                                    <h4 className="review-title">AI Coach</h4>
+                                    <p className="review-text">{llmReview}</p>
+                                </div>
+                            )}
+
+                            {/* Current move info */}
+                            {currentAnalysis && (
+                                <div className="move-info-card">
+                                    <span className="move-number-title">
+                                        Move {currentAnalysis.move_number} ({currentAnalysis.color})
+                                    </span>
+                                    {currentAnalysis.best_move && currentAnalysis.classification !== "Best" && currentAnalysis.classification !== "Book" && (
+                                        <span className="best-move-hint">
+                                            Best Move: <strong>{currentAnalysis.best_move}</strong>
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        {/* LLM Review */}
-                        {isReviewLoading && (
-                            <div className="llm-review-card">
-                                <div className="review-loading">
-                                    <span className="loading-dot"></span>
-                                    <span className="loading-dot"></span>
-                                    <span className="loading-dot"></span>
-                                    Reviewing...
-                                </div>
-                            </div>
-                        )}
-                        {llmReview && !isReviewLoading && (
-                            <div className="llm-review-card">
-                                <h4 className="review-title">AI Coach</h4>
-                                <p className="review-text">{llmReview}</p>
-                            </div>
-                        )}
-
-                        {/* Current move info */}
-                        {currentAnalysis && (
-                            <div className="move-info-card">
-                                <div className="move-header">
-                                    <span className="move-number-title">Move {currentAnalysis.move_number} ({currentAnalysis.color})</span>
+                        {/* Scrollable Move List Section */}
+                        <div className="review-moves-scroll" ref={moveListRef}>
+                            {analysis.map((move, i) => (
+                                <div
+                                    key={move.id}
+                                    className={`move-item ${currentMoveIndex === i + 1 ? "move-active" : ""}`}
+                                    onClick={() => handleMoveClick(i + 1)}
+                                >
+                                    <span className="move-num">
+                                        {move.move_number}.{move.color === "black" ? ".." : ""}
+                                    </span>
+                                    <span className="move-uci">{move.move_san || move.move_uci}</span>
                                     <span
-                                        className="classification-badge"
-                                        style={{ background: classColors[currentAnalysis.classification] || "#64748b" }}
+                                        className="move-class-dot"
+                                        style={{ background: classColors[move.classification] || "#64748b" }}
+                                        title={move.classification}
                                     >
-                                        {currentAnalysis.classification}
+                                        {move.classification}
                                     </span>
                                 </div>
-                                {currentAnalysis.best_move && currentAnalysis.classification !== "Best" && currentAnalysis.classification !== "Book" && (
-                                    <div className="best-move-hint">
-                                        Engine recommends: <span className="font-bold">{currentAnalysis.best_move}</span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        {analysis.map((move, i) => (
-                            <div
-                                key={move.id}
-                                className={`move-item ${currentMoveIndex === i + 1 ? "move-active" : ""}`}
-                                onClick={() => handleMoveClick(i + 1)}
-                            >
-                                <span className="move-num">
-                                    {move.move_number}.{move.color === "black" ? ".." : ""}
-                                </span>
-                                <span className="move-uci">{move.move_san || move.move_uci}</span>
-                                <span
-                                    className="move-class-dot"
-                                    style={{ background: classColors[move.classification] || "#64748b" }}
-                                    title={move.classification}
-                                >
-                                    {move.classification}
-                                </span>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>

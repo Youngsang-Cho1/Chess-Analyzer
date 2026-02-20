@@ -651,11 +651,25 @@ body {
   width: 100%;
   height: 600px;
   /* Fixed height container */
-  overflow-y: auto;
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-moves-sticky {
+  flex-shrink: 0;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.review-moves-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
 }
 
 .moves-header {
@@ -663,8 +677,6 @@ body {
   font-weight: 700;
   color: var(--foreground);
   margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -751,7 +763,6 @@ body {
   margin-top: 1rem;
   padding: 1.25rem;
   background: linear-gradient(135deg, #1e1b4b, #312e81);
-  /* Indigo 950 -> 900 */
   color: white;
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
@@ -762,7 +773,6 @@ body {
   font-size: 0.9rem;
   font-weight: 700;
   color: #c7d2fe;
-  /* Indigo 200 */
   margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
@@ -841,7 +851,6 @@ body {
 
 .game-link:hover {
   color: #818cf8;
-  /* Indigo 400 */
 }
 
 /* Scrollbar */
@@ -907,14 +916,36 @@ body {
 
 /* Move Info (under board) */
 .move-info-card {
-  background: var(--card-bg);
+  background: rgba(39, 39, 42, 0.4);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  transition: all var(--transition);
+  border-radius: var(--radius-sm);
   margin-top: 1rem;
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  justify-content: flex-start;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.move-number-title {
+  color: var(--muted-fg);
+  font-weight: 500;
+}
+
+.best-move-hint {
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.best-move-hint strong {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.15);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  font-weight: 700;
 }
