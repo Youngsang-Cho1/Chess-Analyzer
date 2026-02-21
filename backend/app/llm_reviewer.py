@@ -50,32 +50,23 @@ Keep the tone professional. Also, Keep your answer Max. 10 sentences; keep it co
 """))
 
         self.move_template = PromptTemplate(
-            input_variables=["move_san", "classification", "move_number", "color", "score", "best_move", "opening", "captured_piece", "opening_theory"],
-            template=("""You are a chess coach. Explain a single move to a student.
+            input_variables=["move_san", "classification", "color", "formatted_score", "best_move", "opening", "captured_piece", "mate_context", "opening_theory"],
+            template=("""You are a chess coach. Provide an ultra-concise, punchy 1-sentence review for a single move, exactly like Chess.com's Game Review.
 
-Move Played: {move_san} (Move {move_number}, {color})
+Move: {move_san} ({color})
 Classification: {classification}
-Captured Piece: {captured_piece}
-Engine Score After Move: {score} cp (Positive = White advantage)
-Engine's Best Move: {best_move}
-Opening: {opening}
-
+Engine Score: {formatted_score}
+Best Move: {best_move}
+{mate_context}
 {opening_theory}
 
-Task:
-Explain WHY this move is classified as "{classification}".
-
-Guidelines by classification:
-- **Brilliant**: Briefly explain the sacrifice and the compensation (attack, position).
-- **Blunder/Mistake/Miss**: Explain the critical error and why {best_move} was better.
-- **Good/Best/Excellent**: Briefly note why it's good (space, development, tactics).
-
-CRITICAL RULES FOR RESPONSE:
-1. MAX 2 SHORT SENTENCES. 
-2. Be extremely punchy and direct. No conversational filler like "This move is classified as...". Just say exactly what happened.
-3. Example Good: "It's a blunder since you hung your Knight on f3. Playing Qe2 would have defended it while controlling the center."
-4. If opening theory is provided, weave it naturally into ONE of the sentences, but DO NOT make it longer.
-5. NO markdown, NO bold, NO lists. Plain text only.
+CRITICAL RULES:
+1. MAX 1 SHORT SENTENCE. NEVER use two sentences.
+2. If the move is a Miss and they missed a mate, literally say: "You missed a chance to checkmate the king." or "They missed a forced mate."
+3. If the move is a blunder that allows mate, literally say: "This blunder allows a forced mate."
+4. Do NOT say "This move is classified as...". Just state the fact directly. 
+5. Example format: "Qxd5 is a blunder since you missed a chance to checkmate the king." or "Nf3 develops a piece and controls the center." or "This permits mate in 1."
+6. No markdown, no bold. Plain text.
 """))
 
     def review_game(self, game_data):
@@ -118,6 +109,32 @@ CRITICAL RULES FOR RESPONSE:
                 opening_theory = f"Opening Theory Context:\n{theory}"
 
         move_data["opening_theory"] = opening_theory
+
+        mate_in = move_data.get("mate_in")
+        best_mate_in = move_data.get("best_mate_in")
+
+        formatted_score = f"{move_data.get('score', 0) / 100} cp"
+        mate_context = ""
+
+        if mate_in is not None:
+            formatted_score = f"M{abs(mate_in)}"
+            mate_context = f"FORCED MATE: The board evaluates to mate in {abs(mate_in)}."
+
+        if best_mate_in is not None and mate_in is None:
+            mate_context = "MISSED MATE: The best move would have led to a forced checkmate, but this move missed it."
+
+        move_data["formatted_score"] = formatted_score
+        move_data["mate_context"] = mate_context
+
+        # We don't need these raw fields in the prompt formatting dict:
+        if "score" in move_data:
+            del move_data["score"]
+        if "move_number" in move_data:
+            del move_data["move_number"]
+        if "mate_in" in move_data:
+            del move_data["mate_in"]
+        if "best_mate_in" in move_data:
+            del move_data["best_mate_in"]
 
         prompt = self.move_template.format(**move_data)
         try:

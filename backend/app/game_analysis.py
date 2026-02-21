@@ -319,8 +319,14 @@ def analyze_game(pgn_string: str):
         eval_data = engine.get_evaluation()
         
         score_val = get_score_val(eval_data)
-
         curr_score_white = score_val
+
+        # Extract explicit mate information
+        mate_in = None
+        if 'type' in eval_data and eval_data['type'] == 'mate':
+            mate_in = eval_data['value']
+            
+        best_mate_in = top_moves[0].get('Mate')
         
         # Convert to Win Probability (0-100)
         my_cp = curr_score_white if is_white else -curr_score_white
@@ -370,23 +376,28 @@ def analyze_game(pgn_string: str):
             if (best_cp > 300 and my_cp < 100) or (best_cp > 2000 and my_cp < 1000) or (best_cp > 500 and cp_loss > 300 and classification != "Blunder"):
                 classification = "Miss"
             
+            # If missed a forced mate
+            if best_mate_in is not None and mate_in is None:
+                if (is_white and best_mate_in > 0) or (not is_white and best_mate_in < 0):
+                    classification = "Miss"
+
         # Brilliant: Sacrifice that's nearly optimal (≤50cp loss, not losing)
         if is_sac:
             print(f"DEBUG: Brilliant SAC detected! Move: {move}, MyCP: {my_cp}, CP Loss: {cp_loss}")
             if cp_loss <= 50 and my_cp >= -50:
                 classification = "Brilliant"
 
-
         # 5. Accuracy Calculation 
         move_accuracy = 103.1668 * exp(-0.04354 * win_diff) - 3.1669
         move_accuracy = max(0, min(100, move_accuracy))
-
 
         result = {
             "move_number": (i // 2) + 1,
             "move_uci": move_uci,
             "move_san": move_san,
             "score": curr_score_white,
+            "mate_in": mate_in,
+            "best_mate_in": best_mate_in,
             "classification": classification,
             "color": "white" if is_white else "black",
             "best_move": best_move_san,

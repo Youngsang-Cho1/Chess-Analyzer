@@ -22,6 +22,8 @@ interface MoveAnalysis {
     move_uci: string;
     move_san: string;
     score: number;
+    mate_in?: number | null;
+    best_mate_in?: number | null;
     classification: string;
     color: string;
     best_move: string;
@@ -48,7 +50,7 @@ export default function GamePage() {
     const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
     const [llmReview, setLlmReview] = useState("");
     const [isReviewLoading, setIsReviewLoading] = useState(false);
-    const [score, setScore] = useState(0);
+    const [score, setScore] = useState<number | string>(0);
     const moveListRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -119,7 +121,11 @@ export default function GamePage() {
         const move = analysis[index - 1];
         if (!move) return;
 
-        setScore(Number((move.score / 100).toFixed(2)));
+        if (move.mate_in !== undefined && move.mate_in !== null) {
+            setScore(`M${Math.abs(move.mate_in)}`);
+        } else {
+            setScore(Number((move.score / 100).toFixed(2)));
+        }
 
         // Calculate FEN for RAG context
         let currentFen = "";
