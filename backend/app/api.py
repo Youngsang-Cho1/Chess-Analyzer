@@ -97,6 +97,8 @@ def review_move(move_id: int):
         "move_number": move.move_number,
         "color": move.color,
         "score": move.score,
+        "mate_in": move.mate_in,
+        "best_mate_in": move.best_mate_in,
         "best_move": move.best_move or "N/A",
         "opening": move.opening or "Unknown",
         "captured_piece": move.captured_piece,

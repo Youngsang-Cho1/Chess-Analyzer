@@ -38,8 +38,10 @@ class MoveAnalysis(Base):
     move_uci = Column(String)
     move_san = Column(String)
     score = Column(Integer) # Store as centipawns (can be null for mate)
+    mate_in = Column(Integer, nullable=True)       
+    best_mate_in = Column(Integer, nullable=True)  # mate_in value for the best move Stockfish recommended
     classification = Column(String)
     color = Column(String) # "white" or "black"
     best_move = Column(String)
     opening = Column(String)
-    captured_piece = Column(String) 
+    captured_piece = Column(String)
