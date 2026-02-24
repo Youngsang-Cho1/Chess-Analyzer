@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import ChessBoard from "../../components/ChessBoard";
+import EvalChart from "../../components/EvalChart";
 import { Chess } from "chess.js";
 
 interface GameData {
@@ -127,30 +128,6 @@ export default function GamePage() {
             setScore(Number((move.score / 100).toFixed(2)));
         }
 
-        // Calculate FEN for RAG context
-        let currentFen = "";
-        try {
-            const chess = new Chess();
-            // Replay moves up to current index
-            for (let i = 0; i < index; i++) {
-                const m = analysis[i];
-                if (m) {
-                    try {
-                        chess.move(m.move_san || m.move_uci);
-                    } catch (e) {
-                        try {
-                            chess.move({ from: m.move_uci.slice(0, 2), to: m.move_uci.slice(2, 4), promotion: m.move_uci.length > 4 ? m.move_uci[4] : undefined });
-                        } catch (e2) {
-                            console.error("Move parse error:", m, e2);
-                        }
-                    }
-                }
-            }
-            currentFen = chess.fen();
-        } catch (e) {
-            console.error("FEN generation error:", e);
-        }
-
         // Fetch LLM review for this move
         setIsReviewLoading(true);
         setLlmReview("");
@@ -163,6 +140,16 @@ export default function GamePage() {
         }
         setIsReviewLoading(false);
     };
+
+    // Build chart data from analysis
+    const chartPoints = analysis.map((move, i) => ({
+        index: i + 1,
+        label: `${move.move_number}${move.color === "black" ? "..." : "."} ${move.move_san || move.move_uci}`,
+        raw: move.score,
+        score: move.score,
+        mate_in: move.mate_in,
+        classification: move.classification,
+    }));
 
     // Get classification for current move
     const currentAnalysis = analysis.length > 0 && currentMoveIndex > 0
@@ -235,6 +222,15 @@ export default function GamePage() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Eval Chart */}
+                        {chartPoints.length > 0 && (
+                            <EvalChart
+                                points={chartPoints}
+                                currentIndex={currentMoveIndex}
+                                onMoveClick={handleMoveClick}
+                            />
+                        )}
 
                         {/* Scrollable Move List Section */}
                         <div className="review-moves-scroll" ref={moveListRef}>
