@@ -10,6 +10,7 @@ from database import engine, get_db
 from models import Game, MoveAnalysis, Base
 from batch import process_user_games
 from player_stats import get_player_stats
+from insights import get_player_insights
 from llm_reviewer import ChessReviewer
 
 reviewer = ChessReviewer()
@@ -81,6 +82,14 @@ def get_game(game_id: int, db: Session = Depends(get_db)):
 def get_stats(username: str):
     stats = get_player_stats(username, limit=50)
     return {"stats": stats}
+
+
+@app.get('/insights/{username}')
+def get_insights(username: str, limit: int = 100):
+    data = get_player_insights(username, limit=limit)
+    if not data:
+        raise HTTPException(status_code=404, detail="No analyzed games for this user")
+    return {"insights": data}
 
 
 @app.get('/moves/{username}/{classification}')

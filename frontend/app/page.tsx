@@ -12,6 +12,7 @@ import MoveQualityChart from "./components/MoveQualityChart";
 import AIInsights from "./components/AIInsights";
 import OpeningStats from "./components/OpeningStats";
 import OpponentSearch from "./components/OpponentSearch";
+import PersonalizedInsights from "./components/PersonalizedInsights";
 
 interface Stats {
   win_rate: number;
@@ -32,7 +33,7 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [opponent, setOpponent] = useState("");
+  const [activeTab, setActiveTab] = useState<"overview" | "insights">("overview");
 
   // Prevent hydration mismatch for charts
   useEffect(() => {
@@ -167,27 +168,59 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Stats Dashboard */}
-        <StatsDashboard stats={stats} />
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 border-b border-gray-700">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`px-4 py-2 -mb-px border-b-2 transition-colors ${
+              activeTab === "overview"
+                ? "border-blue-400 text-blue-300"
+                : "border-transparent text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab("insights")}
+            className={`px-4 py-2 -mb-px border-b-2 transition-colors ${
+              activeTab === "insights"
+                ? "border-blue-400 text-blue-300"
+                : "border-transparent text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Insights
+          </button>
+        </div>
 
-        {/* AI Insight */}
-        {stats && <AIInsights insight={stats.ai_insight} />}
-
-        {/* Charts Section */}
-        {mounted && stats && stats.history && stats.history.length > 0 && (
+        {activeTab === "overview" && (
           <>
-            {/* Row 1: Trends */}
-            <div className="chart-grid">
-              <AccuracyChart history={stats.history} />
-              <ResultDistributionChart history={stats.history} />
-            </div>
+            {/* Stats Dashboard */}
+            <StatsDashboard stats={stats} />
 
-            {/* Row 2: Deep Analysis */}
-            <div className="chart-grid">
-              <MoveQualityChart data={stats.classifications} username={username} />
-              <OpeningStats history={stats.history} />
-            </div>
+            {/* AI Insight */}
+            {stats && <AIInsights insight={stats.ai_insight} />}
+
+            {/* Charts Section */}
+            {mounted && stats && stats.history && stats.history.length > 0 && (
+              <>
+                {/* Row 1: Trends */}
+                <div className="chart-grid">
+                  <AccuracyChart history={stats.history} />
+                  <ResultDistributionChart history={stats.history} />
+                </div>
+
+                {/* Row 2: Deep Analysis */}
+                <div className="chart-grid">
+                  <MoveQualityChart data={stats.classifications} username={username} />
+                  <OpeningStats history={stats.history} />
+                </div>
+              </>
+            )}
           </>
+        )}
+
+        {activeTab === "insights" && mounted && (
+          <PersonalizedInsights username={username} />
         )}
 
         {/* Analyze Button */}
