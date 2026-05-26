@@ -15,6 +15,15 @@ engine = create_engine(DATABASE_URL) #connect to postgresql db
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine) #create a session
 Base = declarative_base() #create a base class for models
 
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 import time
 
 def init_db():

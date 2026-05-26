@@ -1,29 +1,43 @@
-from fastapi import FastAPI, BackgroundTasks
+import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, BackgroundTasks, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from database import SessionLocal, engine
-from models import Game, MoveAnalysis, Base
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
+from database import engine, get_db
+from models import Game, MoveAnalysis, Base
 from batch import process_user_games
 from player_stats import get_player_stats
 from llm_reviewer import ChessReviewer
 
 reviewer = ChessReviewer()
 
-app = FastAPI()
 
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     Base.metadata.create_all(engine)
     print("DB tables verified/created.")
+    yield
 
-# Allow Frontend (Next.js) to access Backend
+
+app = FastAPI(lifespan=lifespan)
+
+# Allow Frontend (Next.js) to access Backend.
+# Override via CORS_ORIGINS env var (comma-separated) for non-local deployments.
+_default_origins = "http://localhost:3000,http://127.0.0.1:3000"
+allowed_origins = [
+    o.strip() for o in os.getenv("CORS_ORIGINS", _default_origins).split(",") if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For development, allow all.
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
 
 @app.get("/")
 def read_root():
@@ -31,49 +45,50 @@ def read_root():
 
 
 @app.post("/analyze/{username}")
-def analyze_games(username: str, background_tasks: BackgroundTasks, limit: int = 5, opponent: str = None):
-    background_tasks.add_task(process_user_games, username, limit=limit, opponent=opponent) # using batch.py
+def analyze_games(
+    username: str,
+    background_tasks: BackgroundTasks,
+    limit: int = 5,
+    opponent: str = None,
+):
+    background_tasks.add_task(process_user_games, username, limit=limit, opponent=opponent)
     msg = f"Analysis started for {username} ({limit} games)"
     if opponent:
         msg += f" vs {opponent}"
     return {"message": msg + ". Refresh in a few minutes."}
 
+
 @app.get("/games/{username}")
-def get_games(username: str):
-    db = SessionLocal()
-    # Query games where user is either White or Black
+def get_games(username: str, db: Session = Depends(get_db)):
     games = db.query(Game).filter(
         or_(Game.white_username == username, Game.black_username == username)
     ).all()
-    db.close()
     return {"games": games}
 
+
 @app.get("/game/{game_id}")
-def get_game(game_id: int):
-    db = SessionLocal()
+def get_game(game_id: int, db: Session = Depends(get_db)):
     game = db.query(Game).filter(Game.id == game_id).first()
     if not game:
-        db.close()
-        return {"error": "Game not found"}
+        raise HTTPException(status_code=404, detail="Game not found")
     analysis = db.query(MoveAnalysis).filter(
         MoveAnalysis.game_id == game_id
     ).order_by(MoveAnalysis.id).all()
-    db.close()
     return {"game": game, "analysis": analysis}
+
 
 @app.get('/stats/{username}')
 def get_stats(username: str):
     stats = get_player_stats(username, limit=50)
     return {"stats": stats}
 
+
 @app.get('/moves/{username}/{classification}')
-def get_moves(username: str, classification: str):
-    db = SessionLocal()
+def get_moves(username: str, classification: str, db: Session = Depends(get_db)):
     results = db.query(MoveAnalysis, Game).join(Game, MoveAnalysis.game_id == Game.id).filter(
         or_(Game.white_username == username, Game.black_username == username),
         MoveAnalysis.classification == classification
     ).all()
-    db.close()
 
     res = []
     for move, game in results:
@@ -84,12 +99,10 @@ def get_moves(username: str, classification: str):
 
 
 @app.get("/review/move/{move_id}")
-def review_move(move_id: int):
-    db = SessionLocal()
+def review_move(move_id: int, db: Session = Depends(get_db)):
     move = db.query(MoveAnalysis).filter(MoveAnalysis.id == move_id).first()
-    db.close()
     if not move:
-        return {"error": "Move not found"}
+        raise HTTPException(status_code=404, detail="Move not found")
 
     move_data = {
         "move_san": move.move_san or move.move_uci,
