@@ -59,6 +59,17 @@
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.2);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.25);
   --shadow-lg: 0 20px 60px -20px rgb(0 0 0 / 0.5);
+
+  /* Library aliases */
+  --bg: var(--background);
+  --surface: var(--card-bg);
+  --gold: var(--primary);
+  --gold-hi: var(--primary-hi);
+  --gold-low: var(--primary-low);
+  --border-soft: var(--border-subtle);
+  --cls-great: #5b8bb4;
+  --r-1: 3px;
+  --r-2: 4px;
 }
 
 @theme inline {
@@ -1746,6 +1757,547 @@ body::before {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+
+/* ─────────────────────────────────────────────────────────
+   Library — multi-game dashboard
+   ───────────────────────────────────────────────────────── */
+
+.lib {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+.lib-eyebrow {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--muted-fg);
+}
+
+.lib-mono {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  color: var(--muted-fg);
+  letter-spacing: 0.04em;
+}
+
+.lib-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.lib-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.lib-card-title {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--foreground);
+}
+
+.lib-card-right { margin-left: auto; }
+
+.lib-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Profile card */
+.lib-profile {
+  background: linear-gradient(135deg, var(--card-bg), var(--raised));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.lib-profile::after {
+  content: '';
+  position: absolute;
+  right: -40px;
+  top: -40px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 162, 76, 0.15), transparent 70%);
+  pointer-events: none;
+}
+
+.lib-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  position: relative;
+  z-index: 1;
+}
+
+.lib-profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #1A1614, #2A2520);
+  color: var(--primary-hi);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 700;
+  font-size: 1.85rem;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.lib-profile-name {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin-top: 0.1rem;
+  color: var(--foreground);
+}
+
+.lib-profile-meta {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  color: var(--muted-fg);
+}
+
+.lib-profile-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.25rem 0;
+}
+
+.lib-profile-stat {
+  display: flex;
+  align-items: baseline;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  color: var(--muted-fg);
+  letter-spacing: 0.04em;
+}
+
+.lib-profile-stat-val {
+  margin-left: auto;
+  color: var(--foreground);
+}
+
+/* KPI tiles */
+.lib-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.lib-kpi {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--primary);
+  border-radius: 4px;
+  padding: 1.1rem 1.1rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lib-kpi--win   { border-top-color: var(--cls-best); }
+.lib-kpi--acc   { border-top-color: var(--primary); }
+.lib-kpi--style { border-top-color: var(--cls-great); }
+.lib-kpi--games { border-top-color: var(--foreground); }
+
+.lib-kpi-value {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 2.25rem;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-top: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lib-kpi--win .lib-kpi-value   { color: var(--cls-best); }
+.lib-kpi--acc .lib-kpi-value   { color: var(--primary); }
+.lib-kpi--style .lib-kpi-value { color: var(--cls-great); font-size: 1.5rem; font-style: italic; letter-spacing: -0.01em; }
+.lib-kpi--games .lib-kpi-value { color: var(--foreground); }
+
+/* Headline insight */
+.lib-headline {
+  background: linear-gradient(90deg, rgba(212, 162, 76, 0.08), transparent 60%);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+  padding: 1.1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.lib-headline-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-hi), var(--primary));
+  color: var(--primary-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.lib-headline-text {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 500;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--foreground);
+}
+
+.lib-headline-text .hi-bad  { color: var(--cls-blunder); font-style: normal; font-weight: 600; }
+.lib-headline-text .hi-warn { color: var(--cls-mistake); font-style: normal; font-weight: 600; }
+.lib-headline-text .hi-good { color: var(--cls-best); font-style: normal; font-weight: 600; }
+
+/* Layout grids used by sections */
+.lib-grid-profile { display: grid; grid-template-columns: 340px 1fr; gap: 1.1rem; }
+.lib-grid-charts { display: grid; grid-template-columns: 2fr 1fr; gap: 1.1rem; }
+.lib-grid-insights { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 1.1rem; }
+.lib-grid-bottom { display: grid; grid-template-columns: 1fr 1.4fr; gap: 1.1rem; }
+
+@media (max-width: 1100px) {
+  .lib-grid-profile,
+  .lib-grid-charts,
+  .lib-grid-insights,
+  .lib-grid-bottom {
+    grid-template-columns: 1fr;
+  }
+  .lib-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Phase table — reuses .data-table from insights */
+.lib-phase-caption {
+  margin-top: 0.75rem;
+  font-size: 0.65rem;
+  color: var(--muted-fg);
+  font-family: var(--font-mono), monospace;
+  line-height: 1.5;
+}
+
+/* Bar chart used by Move Quality */
+.lib-bars {
+  display: grid;
+  gap: 0.5rem;
+  height: 200px;
+  align-items: end;
+}
+
+.lib-bar-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: flex-end;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  height: 100%;
+}
+
+.lib-bar-count {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.lib-bar-fill {
+  width: 100%;
+  min-height: 4px;
+  border-radius: 2px 2px 0 0;
+  transition: opacity 0.15s;
+}
+
+.lib-bar-labels {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.lib-bar-label {
+  text-align: center;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.55rem;
+  color: var(--muted-fg);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.lib-bar-glyph { font-size: 0.7rem; font-weight: 700; }
+
+/* Extreme opening tile */
+.lib-extreme {
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(212, 162, 76, 0.06), transparent 70%);
+}
+
+.lib-extreme--best  { border-left: 2px solid var(--cls-best); background: linear-gradient(90deg, rgba(134, 239, 172, 0.08), transparent 70%); }
+.lib-extreme--worst { border-left: 2px solid var(--cls-blunder); background: linear-gradient(90deg, rgba(248, 113, 113, 0.08), transparent 70%); }
+
+.lib-extreme-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.lib-extreme-label {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+}
+
+.lib-extreme-name {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.lib-extreme-meta {
+  display: flex;
+  gap: 0.875rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  color: var(--muted-fg);
+}
+
+/* Blunder buckets row */
+.lib-bucket-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 36px;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.lib-bucket-row + .lib-bucket-row { margin-top: 0.5rem; }
+
+.lib-bucket-label {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  color: var(--muted-fg);
+}
+
+.lib-bucket-track {
+  height: 14px;
+  background: #0A0B0D;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.lib-bucket-fill {
+  height: 100%;
+  background: var(--cls-inaccuracy);
+  opacity: 0.55;
+  transition: width 0.3s;
+}
+
+.lib-bucket-fill--worst {
+  background: linear-gradient(90deg, var(--cls-mistake), var(--cls-blunder));
+  opacity: 1;
+}
+
+.lib-bucket-count {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.lib-bucket-footnote {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  color: var(--muted-fg);
+  letter-spacing: 0.03em;
+}
+
+/* Recent games row */
+.lib-game-row {
+  display: grid;
+  grid-template-columns: 30px 1fr 130px 60px 80px;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lib-game-row:first-child { border-top: none; }
+
+.lib-game-id {
+  font-size: 0.6rem;
+  color: var(--muted-fg);
+  letter-spacing: 0.05em;
+}
+
+.lib-game-opening {
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lib-game-acc { color: var(--muted-fg); font-size: 0.65rem; }
+
+.lib-game-result {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+}
+
+.lib-game-result--win  { color: var(--cls-best); }
+.lib-game-result--loss { color: var(--cls-blunder); }
+.lib-game-result--draw { color: var(--muted-fg); }
+
+.lib-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--foreground);
+  padding: 0.3rem 0.65rem;
+  font-size: 0.65rem;
+  font-family: inherit;
+  cursor: pointer;
+  letterspacing: 0.05em;
+  transition: border-color var(--transition);
+  text-decoration: none;
+  display: inline-block;
+}
+
+.lib-btn:hover { border-color: var(--primary); }
+
+.lib-btn-primary {
+  background: var(--primary);
+  color: var(--primary-fg);
+  border-color: var(--primary);
+  font-weight: 600;
+}
+
+.lib-btn-primary:hover { background: var(--primary-hi); border-color: var(--primary-hi); }
+
+/* Top openings row */
+.lib-topop-row {
+  display: grid;
+  grid-template-columns: 1fr 80px 36px;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+}
+
+.lib-topop-row + .lib-topop-row { margin-top: 0.5rem; }
+
+.lib-topop-name {
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lib-topop-track {
+  height: 6px;
+  background: #0A0B0D;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.lib-topop-fill {
+  height: 100%;
+  background: var(--primary);
+  opacity: 0.7;
+}
+
+.lib-topop-count {
+  text-align: right;
+  color: var(--muted-fg);
+  font-size: 0.7rem;
+}
+
+/* Result donut */
+.lib-donut-row {
+  display: flex;
+  gap: 1.1rem;
+  align-items: center;
+}
+
+.lib-donut-legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lib-donut-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+}
+
+.lib-donut-swatch { width: 10px; height: 10px; border-radius: 2px; }
+
+.lib-donut-name { min-width: 50px; color: var(--foreground); }
+
+.lib-donut-value {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.lib-donut-pct {
+  font-size: 0.65rem;
+  color: var(--muted-fg);
+  min-width: 36px;
+  text-align: right;
 }
 
 /* Hide the old chessboard controls — Salon uses keyboard + eval chart */

@@ -2,155 +2,86 @@
 "use client";
 import { useEffect, useState } from "react";
 import "./globals.css";
-import StatsDashboard from "./components/StatsDashboard";
-import GameList from "./components/GameList";
-import AnalyzeButton from "./components/AnalyzeButton";
 import LoadingOverlay from "./components/LoadingOverlay";
-import AccuracyChart from "./components/AccuracyChart";
-import ResultDistributionChart from "./components/ResultDistributionChart";
-import MoveQualityChart from "./components/MoveQualityChart";
-import AIInsights from "./components/AIInsights";
-import OpeningStats from "./components/OpeningStats";
+import AnalyzeButton from "./components/AnalyzeButton";
 import OpponentSearch from "./components/OpponentSearch";
+import LibraryDashboard from "./components/LibraryDashboard";
 import PersonalizedInsights from "./components/PersonalizedInsights";
-
-interface Stats {
-  win_rate: number;
-  record: string;
-  avg_accuracy: number;
-  total_games: number;
-  style: string;
-  history: any[];
-  classifications: Record<string, number>;
-  ai_insight: string;
-}
-
 
 export default function Home() {
   const [username, setUsername] = useState("choys1211");
-  const [games, setGames] = useState([]);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "insights">("overview");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "insights">("overview");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Prevent hydration mismatch for charts
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const fetchAllData = async (user: string) => {
-    setIsFetching(true);
-    try {
-      const resGames = await fetch(`http://localhost:8000/games/${user}`);
-      const dataGames = await resGames.json();
-      setGames(dataGames.games || []);
-
-      const resStats = await fetch(`http://localhost:8000/stats/${user}`);
-      const dataStats = await resStats.json();
-      setStats(dataStats.stats || null);
-
-    } catch (err) {
-      console.error("Failed to fetch data:", err);
-    } finally {
-      setIsFetching(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAllData(username);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   const handleSearch = () => {
     if (!username.trim()) return;
-    fetchAllData(username);
+    setRefreshKey((k) => k + 1);
   };
 
   const runAnalysis = async (limit: number, opponent?: string) => {
     setIsAnalyzing(true);
     try {
       let url = `http://localhost:8000/analyze/${username}?limit=${limit}`;
-      if (opponent) {
-        url += `&opponent=${opponent}`;
-      }
+      if (opponent) url += `&opponent=${opponent}`;
 
-      const options = {
+      const postRes = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username }),
-      };
+      });
+      if (!postRes.ok) throw new Error(`Analysis request failed: ${postRes.status}`);
 
-      // 1. Request Analysis
-      const postRes = await fetch(url, options);
-      if (!postRes.ok) {
-        throw new Error(`Analysis request failed with status: ${postRes.status}`);
-      }
-
-      // 2. Poll the backend until the number of games increases by 'limit'
-      const initialGamesCount = games.length;
-      let targetGamesCount = initialGamesCount + limit;
-      let consecutiveErrors = 0;
+      // Poll until count grows
+      const initial = await fetch(`http://localhost:8000/games/${username}`).then((r) => r.json());
+      const startCount = (initial.games || []).length;
+      const target = startCount + limit;
+      let errs = 0;
 
       while (true) {
-        await new Promise((resolve) => setTimeout(resolve, 5000)); // wait 5 seconds
-
+        await new Promise((res) => setTimeout(res, 5000));
         try {
-          const resGames = await fetch(`http://localhost:8000/games/${username}`);
-
-          if (!resGames.ok) {
-            consecutiveErrors++;
-            if (consecutiveErrors >= 5) {
-              throw new Error("Backend repeatedly failed to respond.");
-            }
-            console.error(`Backend error during polling (Attempt ${consecutiveErrors}/5), retrying...`);
+          const r = await fetch(`http://localhost:8000/games/${username}`);
+          if (!r.ok) {
+            errs++;
+            if (errs >= 5) break;
             continue;
           }
-
-          // Success, reset error counter
-          consecutiveErrors = 0;
-
-          const dataGames = await resGames.json();
-          const currentGamesCount = (dataGames.games || []).length;
-
-          // Break if we hit our target or if a ton of new games got added unexpectedly
-          if (currentGamesCount >= targetGamesCount || currentGamesCount > initialGamesCount * 1.5) {
-            break;
-          }
-        } catch (e) {
-          consecutiveErrors++;
-          if (consecutiveErrors >= 5) {
-            console.error("Max consecutive polling errors reached. Aborting analysis wait.");
-            break; // Break loop but still try to fetch whatever data exists below
-          }
-          console.error(`Network error during polling (Attempt ${consecutiveErrors}/5). Waiting...`, e);
+          errs = 0;
+          const d = await r.json();
+          const n = (d.games || []).length;
+          if (n >= target || n > startCount * 1.5) break;
+        } catch {
+          errs++;
+          if (errs >= 5) break;
         }
       }
 
-      // Finally, fetch all data to update the UI
-      await fetchAllData(username);
-
-    } catch (error) {
-      console.error("Error during analysis:", error);
-      alert("Analysis failed. Please try again.");
+      setIsFetching(true);
+      setRefreshKey((k) => k + 1);
+      setIsFetching(false);
+    } catch (e) {
+      console.error(e);
+      alert("Analysis failed.");
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const handleAnalyze = (limit: number) => runAnalysis(limit);
-  const opponentAnalyze = (limit: number, opponent?: string) => runAnalysis(limit, opponent);
-
   return (
     <div className="analysis-page">
-      <LoadingOverlay isVisible={isAnalyzing || isFetching} message={isAnalyzing ? "Connecting to Chess.com & Initializing Stockfish..." : "Loading Data..."} />
+      <LoadingOverlay
+        isVisible={isAnalyzing || isFetching}
+        message={isAnalyzing ? "Fetching games & running Stockfish..." : "Loading..."}
+      />
 
       <div className="max-w-container">
-        <h1 className="page-title">♟️ Chess Analyzer</h1>
+        <h1 className="page-title">♟ Chess Analyzer</h1>
 
-        {/* Search Bar */}
         <div className="search-container">
           <input
             type="text"
@@ -158,17 +89,24 @@ export default function Home() {
             onChange={(e) => setUsername(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             className="search-input"
-            placeholder="Enter Chess.com Username..."
+            placeholder="Chess.com username"
           />
-          <button
-            onClick={handleSearch}
-            className="search-button"
-          >
-            Search
-          </button>
+          <button onClick={handleSearch} className="search-button">Search</button>
         </div>
 
-        {/* Tabs */}
+        <div className="mb-8 flex flex-col items-end gap-4" style={{ marginBottom: "1.5rem" }}>
+          <AnalyzeButton
+            isAnalyzing={isAnalyzing}
+            handleAnalyze={(limit) => runAnalysis(limit)}
+            username={username}
+          />
+          <OpponentSearch
+            isAnalyzing={isAnalyzing}
+            handleAnalyze={(limit, opp) => runAnalysis(limit, opp)}
+            username={username}
+          />
+        </div>
+
         <div className="tab-bar">
           <button
             onClick={() => setActiveTab("overview")}
@@ -184,54 +122,13 @@ export default function Home() {
           </button>
         </div>
 
-        {activeTab === "overview" && (
-          <>
-            {/* Stats Dashboard */}
-            <StatsDashboard stats={stats} />
-
-            {/* AI Insight */}
-            {stats && <AIInsights insight={stats.ai_insight} />}
-
-            {/* Charts Section */}
-            {mounted && stats && stats.history && stats.history.length > 0 && (
-              <>
-                {/* Row 1: Trends */}
-                <div className="chart-grid">
-                  <AccuracyChart history={stats.history} />
-                  <ResultDistributionChart history={stats.history} />
-                </div>
-
-                {/* Row 2: Deep Analysis */}
-                <div className="chart-grid">
-                  <MoveQualityChart data={stats.classifications} username={username} />
-                  <OpeningStats history={stats.history} />
-                </div>
-              </>
-            )}
-          </>
+        {mounted && activeTab === "overview" && (
+          <LibraryDashboard key={`ov-${refreshKey}`} username={username} />
         )}
 
-        {activeTab === "insights" && mounted && (
-          <PersonalizedInsights username={username} />
+        {mounted && activeTab === "insights" && (
+          <PersonalizedInsights key={`ins-${refreshKey}`} username={username} />
         )}
-
-        {/* Analyze Button */}
-        <div className="mb-8 flex flex-col items-end gap-4">
-          <AnalyzeButton
-            isAnalyzing={isAnalyzing}
-            handleAnalyze={handleAnalyze}
-            username={username}
-          />
-          <OpponentSearch
-            isAnalyzing={isAnalyzing}
-            handleAnalyze={opponentAnalyze}
-            username={username}
-          />
-        </div>
-
-
-        {/* Game List */}
-        <GameList games={games} username={username} />
       </div>
     </div>
   );
