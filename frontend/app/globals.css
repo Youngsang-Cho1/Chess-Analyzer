@@ -73,10 +73,11 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 14.5px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.55;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
 }
 
 /* Subtle gold vignette at top of every page */
@@ -130,10 +131,12 @@ body::before {
 
 /* Stat values feel editorial in serif; numbers stay mono */
 .stat-value {
-  font-family: var(--font-serif), Georgia, serif;
-  font-weight: 500;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
   letter-spacing: -0.03em;
-  font-size: 2.25rem;
+  font-size: 2rem;
+  color: var(--foreground);
 }
 
 .stat-label {
@@ -144,7 +147,7 @@ body::before {
 
 .stat-value-win  { color: var(--primary); }
 .stat-value-acc  { color: var(--primary-hi); }
-.stat-value-style { color: var(--foreground); font-size: 1.4rem; font-style: italic; }
+.stat-value-style { color: var(--foreground); font-size: 1.25rem; font-family: var(--font-sans), system-ui, sans-serif; font-weight: 600; font-style: normal; letter-spacing: -0.01em; }
 
 /* Score pill */
 .score-label { font-family: var(--font-mono), monospace; color: var(--primary); }
@@ -154,15 +157,15 @@ body::before {
 .insights-headline { border-left-color: var(--primary); }
 .insights-headline-eyebrow { font-family: var(--font-mono), monospace; }
 .insights-headline-text {
-  font-family: var(--font-serif), Georgia, serif;
-  font-size: 1.05rem;
-  font-style: italic;
-  line-height: 1.55;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--foreground);
 }
 
 .insights-section-title { font-family: var(--font-mono), monospace; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted-fg); }
 
-.kpi-tile-name { font-family: var(--font-serif), Georgia, serif; font-weight: 500; letter-spacing: -0.01em; font-size: 1.15rem; }
+.kpi-tile-name { font-family: var(--font-sans), system-ui, sans-serif; font-weight: 600; letter-spacing: -0.015em; font-size: 1rem; }
 
 /* Tone updates to match palette */
 .tone-good { color: var(--primary-hi); }
@@ -1390,10 +1393,11 @@ body::before {
 }
 
 .player-card-acc-val {
-  font-family: var(--font-serif), Georgia, serif;
-  font-size: 1.7rem;
-  font-weight: 500;
-  letter-spacing: -0.04em;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
   line-height: 1;
   color: var(--foreground);
 }
@@ -1621,12 +1625,12 @@ body::before {
 }
 
 .gm-quote {
-  font-family: var(--font-serif), Georgia, serif;
-  font-size: 1rem;
-  font-style: italic;
-  line-height: 1.5;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 400;
+  line-height: 1.55;
   color: var(--foreground);
-  letter-spacing: 0.005em;
+  letter-spacing: -0.005em;
 }
 
 .gm-quote-loading {
