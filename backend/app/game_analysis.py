@@ -77,67 +77,62 @@ PIECE_VALUES = {
     chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0
 }
 
-def get_min_recapture_value(board, move):
-    board.push(move)
-    min_val = None
-    for m in board.legal_moves:
-        if m.to_square == move.to_square:
-            piece = board.piece_at(m.from_square)
-            if piece:
-                val = PIECE_VALUES[piece.piece_type]
-                min_val = val if min_val is None else min(min_val, val)
-    board.pop()
-    return min_val is not None, min_val or 0
+def _piece_val(board, square):
+    p = board.piece_at(square)
+    return PIECE_VALUES[p.piece_type] if p else 0
+
+
+def static_exchange_eval(board, move):
+    """
+    Static Exchange Evaluation (SEE) for `move` on its target square.
+
+    Returns the net material (in pawns) the mover nets after both sides keep
+    recapturing on `to_square` with their cheapest attacker. Negative means the
+    move loses material in the exchange — the basis of a sacrifice. Works on a
+    board copy so the caller's stack is untouched. En-passant/promotion are
+    approximated (negligible for sac detection).
+    """
+    to_sq = move.to_square
+    b = board.copy(stack=False)
+
+    captured = _piece_val(b, to_sq)            # value we capture with the move
+    on_square = _piece_val(b, move.from_square)  # our piece, now recapturable
+
+    b.push(move)
+
+    gain = [captured]
+    occupied_value = on_square
+    side = b.turn  # opponent recaptures first
+
+    while True:
+        attackers = b.attackers(side, to_sq)
+        if not attackers:
+            break
+        cheapest_sq = min(attackers, key=lambda s: _piece_val(b, s))
+        recapture = chess.Move(cheapest_sq, to_sq)
+        if recapture not in b.legal_moves:
+            break  # pinned / illegal — exchange stops
+        gain.append(occupied_value - gain[-1])
+        occupied_value = _piece_val(b, cheapest_sq)
+        b.push(recapture)
+        side = not side
+
+    # Minimax back up the swap list.
+    for i in range(len(gain) - 2, -1, -1):
+        gain[i] = -max(-gain[i], gain[i + 1])
+    return gain[0]
+
 
 def is_sacrifice(board, move):
-    is_sacrifice = False
-    
-    if board.is_capture(move): 
-        # Check for Recapture
-        is_recapture = False
-        # Check if the move is a recapture
-        if board.move_stack: 
-            last_move = board.peek() 
-            if move.to_square == last_move.to_square:
-                board.pop() 
-                if board.is_capture(last_move): 
-                    is_recapture = True
-                board.push(last_move) 
-
-        # Case A: Active Sacrifice
-        my_piece = board.piece_at(move.from_square)
-        target_piece = board.piece_at(move.to_square) # the piece being captured
-        
-        if my_piece and target_piece:
-            my_val = PIECE_VALUES[my_piece.piece_type]
-            target_val = PIECE_VALUES[target_piece.piece_type]
-            
-            can_recapture, min_threat_val = get_min_recapture_value(board, move)
-            
-            if can_recapture: # If the opponent can recapture
-                if is_recapture: # If the player's move was a recapture
-                    if target_val >= my_val:
-                         # Captured equal or higher value piece -> Is Trade or Win -> Not Sacrifice
-                        is_sacrifice = False
-                    else:
-                        # Captured smaller piece with bigger piece -> Sacrifice
-                        is_sacrifice = True
-                else: 
-                     # Non-recapture capture (Case A): 
-                     # Sacrifice if I lose significantly more than I gain (at least 2 points)
-                     # Regardless of WHO recaptures me (Pawn or Queen), if I lose a Rook(5) for a Bishop(3), I lost 2 points.
-                     if my_val - target_val >= 2:
-                         is_sacrifice = True
-                        
-    else:
-        # Case B: Passive Sacrifice
-        my_piece = board.piece_at(move.from_square)
-        if my_piece:
-            can_recapture, min_threat_val = get_min_recapture_value(board, move)
-            if can_recapture and PIECE_VALUES[my_piece.piece_type] - min_threat_val >= 2:
-                is_sacrifice = True
-
-    return is_sacrifice
+    """A move is a sacrifice if the exchange on its target square loses
+    material (SEE < 0) — i.e. the mover willingly gives up more than they get,
+    rather than making an even trade or winning material."""
+    try:
+        see = static_exchange_eval(board, move)
+    except Exception:
+        return False
+    # Lose at least ~2 points in the exchange to count as a real sacrifice.
+    return see <= -2
 
 
 def get_score_val(move_data):
