@@ -1,17 +1,24 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ChessBoard from "../../components/ChessBoard";
 import EvalChart from "../../components/EvalChart";
 import RiskStrip from "../../components/RiskStrip";
-import { Chess } from "chess.js";
+import EvalBar from "../../components/EvalBar";
+import PlayerCard from "../../components/PlayerCard";
+import GMCommentary from "../../components/GMCommentary";
+import MoveGrid from "../../components/MoveGrid";
 
 interface GameData {
     id: number;
     pgn: string;
     white_username: string;
     black_username: string;
+    white_rating?: number | null;
+    black_rating?: number | null;
+    white_accuracy?: number | null;
+    black_accuracy?: number | null;
     white_result: string;
     black_result: string;
     time_control: string;
@@ -32,18 +39,13 @@ interface MoveAnalysis {
     opening: string;
 }
 
-const classColors: Record<string, string> = {
-    Brilliant: "#26c2a3",
-    Great: "#5b8bb4",
-    Book: "#a88b5e",
-    Best: "#99cc68",
-    Excellent: "#99cc68",
-    Good: "#81b64c",
-    Inaccuracy: "#f7c631",
-    Mistake: "#e6912b",
-    Blunder: "#ca3431",
-    Miss: "#ff6b6b",
-};
+interface RiskPred {
+    move_id: number;
+    move_number: number;
+    color: string;
+    risk: number;
+    classification: string;
+}
 
 export default function GamePage() {
     const params = useParams();
@@ -52,15 +54,11 @@ export default function GamePage() {
     const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
     const [llmReview, setLlmReview] = useState("");
     const [isReviewLoading, setIsReviewLoading] = useState(false);
-    const [score, setScore] = useState<number | string>(0);
-    const moveListRef = useRef<HTMLDivElement>(null);
 
-    const [riskData, setRiskData] = useState<{
-        predictions: { move_id: number; move_number: number; color: string; risk: number; classification: string }[];
-        trained: boolean;
-        auc?: number;
-        reason?: string;
-    }>({ predictions: [], trained: false });
+    const [riskData, setRiskData] = useState<{ predictions: RiskPred[]; trained: boolean; auc?: number; reason?: string }>({
+        predictions: [],
+        trained: false,
+    });
     const [trainingRisk, setTrainingRisk] = useState(false);
     const [trainError, setTrainError] = useState<string | null>(null);
 
@@ -74,7 +72,6 @@ export default function GamePage() {
         fetchGame();
     }, [params.id]);
 
-    // Fetch risk predictions
     useEffect(() => {
         const fetchRisk = async () => {
             try {
@@ -94,20 +91,53 @@ export default function GamePage() {
         fetchRisk();
     }, [params.id]);
 
+    // Keyboard nav
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "ArrowRight" && currentMoveIndex < analysis.length) handleMoveClick(currentMoveIndex + 1);
+            else if (e.key === "ArrowLeft" && currentMoveIndex > 0) handleMoveClick(currentMoveIndex - 1);
+            else if (e.key === "Home") handleMoveClick(0);
+            else if (e.key === "End") handleMoveClick(analysis.length);
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentMoveIndex, analysis.length]);
+
+    const handleMoveChange = (index: number) => setCurrentMoveIndex(index);
+
+    const handleMoveClick = async (index: number) => {
+        setCurrentMoveIndex(index);
+        if (index === 0) {
+            setLlmReview("");
+            return;
+        }
+        const move = analysis[index - 1];
+        if (!move) return;
+
+        setIsReviewLoading(true);
+        setLlmReview("");
+        try {
+            const res = await fetch(`http://localhost:8000/review/move/${move.id}`);
+            const data = await res.json();
+            setLlmReview(data.review);
+        } catch {
+            setLlmReview("Failed to load review.");
+        }
+        setIsReviewLoading(false);
+    };
+
     const trainRiskModel = async () => {
         if (!game) return;
-        const username = game.white_username; // train for whoever is on white; user can re-train for black
+        const username = game.white_username;
         setTrainingRisk(true);
         setTrainError(null);
         try {
-            const res = await fetch(`http://localhost:8000/risk/train/${username}`, {
-                method: "POST",
-            });
+            const res = await fetch(`http://localhost:8000/risk/train/${username}`, { method: "POST" });
             const data = await res.json();
             if (!res.ok) {
                 setTrainError(data.detail || "Training failed");
             } else {
-                // Refetch predictions for this game
                 const r = await fetch(`http://localhost:8000/risk/${params.id}`);
                 if (r.ok) {
                     const rd = await r.json();
@@ -126,84 +156,6 @@ export default function GamePage() {
         }
     };
 
-    // arrow key event listener
-    useEffect(() => {
-        const handleKeyPressed = (event: KeyboardEvent) => {
-            if (event.key === "ArrowRight") {
-                if (currentMoveIndex < analysis.length) {
-                    handleMoveClick(currentMoveIndex + 1);
-                }
-            } else if (event.key === "ArrowLeft") {
-                if (currentMoveIndex > 0) {
-                    handleMoveClick(currentMoveIndex - 1);
-                }
-            }
-        };
-
-        window.addEventListener("keydown", handleKeyPressed);
-        return () => {
-            window.removeEventListener("keydown", handleKeyPressed);
-        };
-    }, [currentMoveIndex, analysis.length]);
-
-    // Auto-scroll move list to current move
-    useEffect(() => {
-        if (moveListRef.current) {
-            const activeItem = moveListRef.current.querySelector(".move-active") as HTMLElement;
-            if (activeItem) {
-                const container = moveListRef.current;
-                const containerRect = container.getBoundingClientRect();
-                const itemRect = activeItem.getBoundingClientRect();
-
-                // Calculate position to center the item perfectly within the container
-                const itemCenter = itemRect.top + (itemRect.height / 2);
-                const containerCenter = containerRect.top + (containerRect.height / 2);
-
-                // Scroll only the container by the difference
-                container.scrollBy({
-                    top: itemCenter - containerCenter,
-                    behavior: "smooth"
-                });
-            }
-        }
-    }, [currentMoveIndex]);
-
-    const handleMoveChange = (index: number) => {
-        setCurrentMoveIndex(index);
-    };
-
-    const handleMoveClick = async (index: number) => {
-        setCurrentMoveIndex(index);
-
-        if (index === 0) {
-            setScore(0);
-            setLlmReview("");
-            return;
-        }
-
-        const move = analysis[index - 1];
-        if (!move) return;
-
-        if (move.mate_in !== undefined && move.mate_in !== null) {
-            setScore(`M${Math.abs(move.mate_in)}`);
-        } else {
-            setScore(Number((move.score / 100).toFixed(2)));
-        }
-
-        // Fetch LLM review for this move
-        setIsReviewLoading(true);
-        setLlmReview("");
-        try {
-            const res = await fetch(`http://localhost:8000/review/move/${move.id}`);
-            const data = await res.json();
-            setLlmReview(data.review);
-        } catch {
-            setLlmReview("Failed to load review.");
-        }
-        setIsReviewLoading(false);
-    };
-
-    // Build chart data from analysis
     const chartPoints = analysis.map((move, i) => ({
         index: i + 1,
         label: `${move.move_number}${move.color === "black" ? "..." : "."} ${move.move_san || move.move_uci}`,
@@ -213,137 +165,125 @@ export default function GamePage() {
         classification: move.classification,
     }));
 
-    // Get classification for current move
-    const currentAnalysis = analysis.length > 0 && currentMoveIndex > 0
-        ? analysis[currentMoveIndex - 1]
-        : null;
+    const currentAnalysis = analysis.length > 0 && currentMoveIndex > 0 ? analysis[currentMoveIndex - 1] : null;
+    const sideToMove = currentMoveIndex % 2 === 0 ? "white" : "black";
 
     if (!game) {
-        return <div className="analysis-page">Loading...</div>;
+        return <div className="analysis-page">Loading…</div>;
     }
 
+    const whiteWon = game.white_result === "1";
+    const blackWon = game.black_result === "1";
+
     return (
-        <div className="analysis-page">
+        <div className="analysis-page salon">
             <div className="max-w-container">
-                <h1 className="page-title">
-                    {game.white_username} vs {game.black_username}
-                </h1>
-                <p className="game-subtitle">
-                    {game.opening} • {game.time_control}
-                </p>
+                {/* Title block */}
+                <div className="salon-title-block">
+                    <div className="salon-title">
+                        {game.opening?.split(":")[0] || "Game"}
+                    </div>
+                    <div className="salon-subtitle">
+                        Move {Math.ceil(Math.max(1, currentMoveIndex) / 2)} · {sideToMove} to play · {game.time_control}
+                    </div>
+                </div>
 
-                <div className="review-layout">
-                    {/* Left: ChessBoard */}
-                    <div className="review-board">
-                        <ChessBoard
-                            chess_PGN={game.pgn}
-                            initialMoveIndex={currentMoveIndex}
-                            onMoveChange={handleMoveChange}
+                <div className="salon-layout">
+                    {/* Left rail: player cards + result */}
+                    <aside className="salon-rail">
+                        <PlayerCard
+                            color="black"
+                            name={game.black_username}
+                            rating={game.black_rating}
+                            accuracy={game.black_accuracy}
+                            isToMove={sideToMove === "black" && currentMoveIndex < analysis.length}
+                            isWinner={blackWon}
                         />
-                    </div>
-
-                    {/* Right: Move List (Moves, Score, LLM Review, Move Info) */}
-                    <div className="review-moves">
-                        {/* Sticky Header Section */}
-                        <div className="review-moves-sticky">
-                            <h3 className="moves-header">Moves</h3>
-                            <div className="score-container" style={{ marginBottom: '1rem' }}>
-                                <span className="score-label">Score:</span>
-                                <span className="score-value">{score}</span>
+                        <div className="salon-rail-center">
+                            <div className="salon-result">
+                                {whiteWon ? "1–0" : blackWon ? "0–1" : "½–½"}
                             </div>
+                            <div className="salon-result-detail">
+                                {whiteWon ? "White wins" : blackWon ? "Black wins" : "Draw"}
+                            </div>
+                        </div>
+                        <PlayerCard
+                            color="white"
+                            name={game.white_username}
+                            rating={game.white_rating}
+                            accuracy={game.white_accuracy}
+                            isToMove={sideToMove === "white" && currentMoveIndex < analysis.length}
+                            isWinner={whiteWon}
+                        />
+                    </aside>
 
-                            {/* LLM Review */}
-                            {isReviewLoading && (
-                                <div className="llm-review-card">
-                                    <div className="review-loading">
-                                        <span className="loading-dot"></span>
-                                        <span className="loading-dot"></span>
-                                        <span className="loading-dot"></span>
-                                        Reviewing...
-                                    </div>
-                                </div>
-                            )}
-                            {llmReview && !isReviewLoading && (
-                                <div className="llm-review-card">
-                                    <h4 className="review-title">AI Coach</h4>
-                                    <p className="review-text">{llmReview}</p>
-                                </div>
-                            )}
-
-                            {/* Current move info */}
-                            {currentAnalysis && (
-                                <div className="move-info-card">
-                                    <span className="move-number-title">
-                                        Move {currentAnalysis.move_number} ({currentAnalysis.color})
-                                    </span>
-                                    {currentAnalysis.best_move && currentAnalysis.classification !== "Best" && currentAnalysis.classification !== "Book" && (
-                                        <span className="best-move-hint">
-                                            Best Move: <strong>{currentAnalysis.best_move}</strong>
-                                        </span>
-                                    )}
-                                </div>
-                            )}
+                    {/* Center: board + eval bar + eval chart */}
+                    <section className="salon-center">
+                        <div className="salon-board-row">
+                            <EvalBar
+                                score={currentAnalysis?.score ?? 0}
+                                mateIn={currentAnalysis?.mate_in}
+                            />
+                            <div className="salon-board-wrap">
+                                <ChessBoard
+                                    chess_PGN={game.pgn}
+                                    initialMoveIndex={currentMoveIndex}
+                                    onMoveChange={handleMoveChange}
+                                />
+                            </div>
                         </div>
 
-                        {/* Eval Chart */}
                         {chartPoints.length > 0 && (
-                            <EvalChart
-                                points={chartPoints}
-                                currentIndex={currentMoveIndex}
-                                onMoveClick={handleMoveClick}
-                            />
-                        )}
-
-                        {/* Risk strip */}
-                        {riskData.trained && riskData.predictions.length > 0 && (
-                            <RiskStrip
-                                predictions={riskData.predictions}
-                                totalMoves={analysis.length}
-                                auc={riskData.auc}
-                                onMoveClick={handleMoveClick}
-                            />
-                        )}
-                        {!riskData.trained && (
-                            <div className="mt-2 px-2 py-2 rounded bg-gray-800/40 text-xs text-gray-300 flex items-center justify-between gap-2">
-                                <span>
-                                    {riskData.reason || "Risk model not trained yet."}
-                                </span>
-                                <button
-                                    onClick={trainRiskModel}
-                                    disabled={trainingRisk}
-                                    className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white text-xs"
-                                >
-                                    {trainingRisk ? "Training…" : "Train risk model"}
-                                </button>
-                            </div>
-                        )}
-                        {trainError && (
-                            <div className="mt-1 px-2 text-xs text-red-400">{trainError}</div>
-                        )}
-
-                        {/* Scrollable Move List Section */}
-                        <div className="review-moves-scroll" ref={moveListRef}>
-                            {analysis.map((move, i) => (
-                                <div
-                                    key={move.id}
-                                    className={`move-item ${currentMoveIndex === i + 1 ? "move-active" : ""}`}
-                                    onClick={() => handleMoveClick(i + 1)}
-                                >
-                                    <span className="move-num">
-                                        {move.move_number}.{move.color === "black" ? ".." : ""}
-                                    </span>
-                                    <span className="move-uci">{move.move_san || move.move_uci}</span>
-                                    <span
-                                        className="move-class-dot"
-                                        style={{ background: classColors[move.classification] || "#64748b" }}
-                                        title={move.classification}
-                                    >
-                                        {move.classification}
+                            <div className="salon-evalcard">
+                                <div className="salon-evalcard-head">
+                                    <span>Evaluation</span>
+                                    <span className="salon-evalcard-meta">
+                                        {currentAnalysis ? currentAnalysis.move_san : "—"}
                                     </span>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                                <EvalChart
+                                    points={chartPoints}
+                                    currentIndex={currentMoveIndex}
+                                    onMoveClick={handleMoveClick}
+                                />
+                                {riskData.trained && riskData.predictions.length > 0 && (
+                                    <RiskStrip
+                                        predictions={riskData.predictions}
+                                        totalMoves={analysis.length}
+                                        auc={riskData.auc}
+                                        onMoveClick={handleMoveClick}
+                                    />
+                                )}
+                                {!riskData.trained && (
+                                    <div className="salon-risk-empty">
+                                        <span>{riskData.reason || "Risk model not trained."}</span>
+                                        <button
+                                            onClick={trainRiskModel}
+                                            disabled={trainingRisk}
+                                            className="salon-risk-btn"
+                                        >
+                                            {trainingRisk ? "Training…" : "Train risk model"}
+                                        </button>
+                                    </div>
+                                )}
+                                {trainError && <div className="salon-risk-err">{trainError}</div>}
+                            </div>
+                        )}
+                    </section>
+
+                    {/* Right: GM commentary + move grid */}
+                    <aside className="salon-aside">
+                        <GMCommentary
+                            move={currentAnalysis}
+                            review={llmReview}
+                            loading={isReviewLoading}
+                        />
+                        <MoveGrid
+                            moves={analysis}
+                            currentPly={currentMoveIndex}
+                            onSelect={handleMoveClick}
+                        />
+                    </aside>
                 </div>
             </div>
         </div>
