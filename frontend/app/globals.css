@@ -36,15 +36,17 @@
   --input: #1E2128;
   --ring: var(--primary);
 
-  /* Semantic move-classification colors */
-  --cls-brilliant: #7DD3FC;
-  --cls-best: #86EFAC;
-  --cls-good: #A7C4BC;
-  --cls-book: #9CA3AF;
-  --cls-inaccuracy: #FCD34D;
-  --cls-mistake: #FB923C;
-  --cls-blunder: #F87171;
-  --cls-miss: #FB7185;
+  /* Move-classification colors — original Chess Analyzer palette */
+  --cls-brilliant: #26c2a3;   /* teal */
+  --cls-great:     #5b8bb4;   /* slate blue */
+  --cls-best:      #99cc68;   /* lime */
+  --cls-excellent: #99cc68;
+  --cls-good:      #81b64c;   /* green */
+  --cls-book:      #a88b5e;   /* brown */
+  --cls-inaccuracy:#f7c631;   /* yellow */
+  --cls-mistake:   #e6912b;   /* orange */
+  --cls-blunder:   #ca3431;   /* red */
+  --cls-miss:      #ff6b6b;   /* pink-red */
 
   /* Tighter, more editorial radii */
   --radius: 4px;
@@ -67,7 +69,6 @@
   --gold-hi: var(--primary-hi);
   --gold-low: var(--primary-low);
   --border-soft: var(--border-subtle);
-  --cls-great: #5b8bb4;
   --r-1: 3px;
   --r-2: 4px;
 }

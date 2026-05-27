@@ -17,9 +17,9 @@ interface Props {
 
 const CLS_COLOR: Record<string, string> = {
     Brilliant: "var(--cls-brilliant)",
-    Great: "var(--cls-best)",
+    Great: "var(--cls-great)",
     Best: "var(--cls-best)",
-    Excellent: "var(--cls-best)",
+    Excellent: "var(--cls-excellent)",
     Good: "var(--cls-good)",
     Book: "var(--cls-book)",
     Forced: "var(--cls-book)",

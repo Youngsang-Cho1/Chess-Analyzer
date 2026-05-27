@@ -64,9 +64,9 @@ const CLS_ORDER = ["Brilliant", "Great", "Best", "Excellent", "Good", "Book", "I
 
 const CLS_META: Record<string, { color: string; glyph: string }> = {
     Brilliant: { color: "var(--cls-brilliant)", glyph: "!!" },
-    Great: { color: "var(--cls-best)", glyph: "!" },
+    Great: { color: "var(--cls-great)", glyph: "!" },
     Best: { color: "var(--cls-best)", glyph: "★" },
-    Excellent: { color: "var(--cls-best)", glyph: "★" },
+    Excellent: { color: "var(--cls-excellent)", glyph: "★" },
     Good: { color: "var(--cls-good)", glyph: "✓" },
     Book: { color: "var(--cls-book)", glyph: "📖" },
     Inaccuracy: { color: "var(--cls-inaccuracy)", glyph: "?!" },
