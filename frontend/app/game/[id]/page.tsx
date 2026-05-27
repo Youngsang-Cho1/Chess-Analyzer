@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import ChessBoard from "../../components/ChessBoard";
 import EvalChart from "../../components/EvalChart";
+import RiskStrip from "../../components/RiskStrip";
 import { Chess } from "chess.js";
 
 interface GameData {
@@ -54,6 +55,15 @@ export default function GamePage() {
     const [score, setScore] = useState<number | string>(0);
     const moveListRef = useRef<HTMLDivElement>(null);
 
+    const [riskData, setRiskData] = useState<{
+        predictions: { move_id: number; move_number: number; color: string; risk: number; classification: string }[];
+        trained: boolean;
+        auc?: number;
+        reason?: string;
+    }>({ predictions: [], trained: false });
+    const [trainingRisk, setTrainingRisk] = useState(false);
+    const [trainError, setTrainError] = useState<string | null>(null);
+
     useEffect(() => {
         const fetchGame = async () => {
             const res = await fetch(`http://localhost:8000/game/${params.id}`);
@@ -63,6 +73,58 @@ export default function GamePage() {
         };
         fetchGame();
     }, [params.id]);
+
+    // Fetch risk predictions
+    useEffect(() => {
+        const fetchRisk = async () => {
+            try {
+                const res = await fetch(`http://localhost:8000/risk/${params.id}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                setRiskData({
+                    predictions: data.predictions || [],
+                    trained: !!data.trained,
+                    auc: data.auc,
+                    reason: data.reason,
+                });
+            } catch (e) {
+                console.error("risk fetch failed", e);
+            }
+        };
+        fetchRisk();
+    }, [params.id]);
+
+    const trainRiskModel = async () => {
+        if (!game) return;
+        const username = game.white_username; // train for whoever is on white; user can re-train for black
+        setTrainingRisk(true);
+        setTrainError(null);
+        try {
+            const res = await fetch(`http://localhost:8000/risk/train/${username}`, {
+                method: "POST",
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setTrainError(data.detail || "Training failed");
+            } else {
+                // Refetch predictions for this game
+                const r = await fetch(`http://localhost:8000/risk/${params.id}`);
+                if (r.ok) {
+                    const rd = await r.json();
+                    setRiskData({
+                        predictions: rd.predictions || [],
+                        trained: !!rd.trained,
+                        auc: rd.auc,
+                        reason: rd.reason,
+                    });
+                }
+            }
+        } catch (e) {
+            setTrainError(String(e));
+        } finally {
+            setTrainingRisk(false);
+        }
+    };
 
     // arrow key event listener
     useEffect(() => {
@@ -230,6 +292,33 @@ export default function GamePage() {
                                 currentIndex={currentMoveIndex}
                                 onMoveClick={handleMoveClick}
                             />
+                        )}
+
+                        {/* Risk strip */}
+                        {riskData.trained && riskData.predictions.length > 0 && (
+                            <RiskStrip
+                                predictions={riskData.predictions}
+                                totalMoves={analysis.length}
+                                auc={riskData.auc}
+                                onMoveClick={handleMoveClick}
+                            />
+                        )}
+                        {!riskData.trained && (
+                            <div className="mt-2 px-2 py-2 rounded bg-gray-800/40 text-xs text-gray-300 flex items-center justify-between gap-2">
+                                <span>
+                                    {riskData.reason || "Risk model not trained yet."}
+                                </span>
+                                <button
+                                    onClick={trainRiskModel}
+                                    disabled={trainingRisk}
+                                    className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white text-xs"
+                                >
+                                    {trainingRisk ? "Training…" : "Train risk model"}
+                                </button>
+                            </div>
+                        )}
+                        {trainError && (
+                            <div className="mt-1 px-2 text-xs text-red-400">{trainError}</div>
                         )}
 
                         {/* Scrollable Move List Section */}

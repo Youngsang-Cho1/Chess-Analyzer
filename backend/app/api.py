@@ -12,6 +12,10 @@ from batch import process_user_games
 from player_stats import get_player_stats
 from insights import get_player_insights
 from llm_reviewer import ChessReviewer
+from ml_features import FEATURE_NAMES, iter_user_moves
+from train_risk import load_model, predict_proba, train as train_risk_model
+
+import numpy as np
 
 reviewer = ChessReviewer()
 
@@ -105,6 +109,89 @@ def get_moves(username: str, classification: str, db: Session = Depends(get_db))
         if move.color == user_color:
             res.append(move)
     return {"moves": res}
+
+
+@app.post("/risk/train/{username}")
+def risk_train(username: str):
+    """Kick off (synchronous) training of the per-user risk model."""
+    path = train_risk_model(username)
+    if not path:
+        raise HTTPException(
+            status_code=400,
+            detail="Not enough data — analyze more games first.",
+        )
+    bundle = load_model(username)
+    return {
+        "ok": True,
+        "model": bundle["kind"],
+        "auc": round(bundle["auc"], 3),
+        "samples": bundle["n_samples"],
+        "positives": bundle["n_positives"],
+    }
+
+
+@app.get("/risk/{game_id}")
+def risk_for_game(game_id: int, db: Session = Depends(get_db)):
+    """Per-move risk probability for the user in this game."""
+    game = db.query(Game).filter(Game.id == game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    moves = (
+        db.query(MoveAnalysis)
+        .filter(MoveAnalysis.game_id == game_id)
+        .order_by(MoveAnalysis.id)
+        .all()
+    )
+    if not moves:
+        return {"trained": False, "predictions": []}
+
+    # Decide which side is "the user" — prefer the side that has a trained model.
+    candidates = [game.white_username, game.black_username]
+    bundle = None
+    username = None
+    for u in candidates:
+        if not u:
+            continue
+        b = load_model(u)
+        if b:
+            bundle = b
+            username = u
+            break
+
+    if not bundle:
+        return {
+            "trained": False,
+            "reason": "No risk model trained for either player. POST /risk/train/{username} first.",
+            "predictions": [],
+        }
+
+    samples = list(iter_user_moves(game.pgn, username, moves))
+    if not samples:
+        return {"trained": True, "auc": bundle["auc"], "predictions": []}
+
+    X = np.array(
+        [[s["features"][n] for n in FEATURE_NAMES] for s in samples], dtype=float
+    )
+    probs = predict_proba(bundle, X)
+
+    preds = [
+        {
+            "move_id": s["move_id"],
+            "move_number": s["move_number"],
+            "color": s["color"],
+            "risk": float(round(p, 3)),
+            "classification": s["classification"],
+        }
+        for s, p in zip(samples, probs)
+    ]
+    return {
+        "trained": True,
+        "username": username,
+        "model": bundle["kind"],
+        "auc": round(bundle["auc"], 3),
+        "predictions": preds,
+    }
 
 
 @app.get("/review/move/{move_id}")
