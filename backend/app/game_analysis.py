@@ -228,7 +228,7 @@ def harmonic_mean(accuracies):
     return 0
 
 # Main Analysis Logic
-STOCKFISH_DEPTH = int(os.getenv("STOCKFISH_DEPTH", "14"))
+STOCKFISH_DEPTH = int(os.getenv("STOCKFISH_DEPTH", "16"))
 STOCKFISH_THREADS = int(os.getenv("STOCKFISH_THREADS", "2"))
 STOCKFISH_HASH_MB = int(os.getenv("STOCKFISH_HASH_MB", "256"))
 
@@ -391,18 +391,17 @@ def analyze_game(pgn_string: str):
                     classification = "Miss"
 
         # Brilliant: a sacrifice that's NOT the obvious engine pick, but still
-        # nearly optimal — and only in roughly balanced positions. (Aligns with
-        # how chess.com awards Brilliant.)
+        # nearly optimal — and only when not already crushingly winning.
         if is_sac and not opening:
             second_gap_ok = (
                 second_cp is None
                 or abs(my_cp - second_cp) <= 100
             )
             is_brilliant = (
-                move_uci != best_move          # if it IS the best move, it's Best/Great, not Brilliant
-                and cp_loss <= 20              # nearly free — must not lose meaningful eval
-                and -200 < my_cp < 400         # exclude positions that are already winning or already lost
-                and second_gap_ok              # 2nd-best shouldn't be miles behind
+                move_uci != best_move    # if it IS the best move, it's Best/Great, not Brilliant
+                and cp_loss <= 50        # nearly best — engine accepts the sacrifice
+                and -200 < my_cp < 600   # exclude already-winning or already-lost positions
+                and second_gap_ok        # 2nd-best shouldn't be miles behind
             )
             if is_brilliant:
                 classification = "Brilliant"
