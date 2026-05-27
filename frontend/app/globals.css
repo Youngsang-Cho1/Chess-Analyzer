@@ -131,11 +131,11 @@ body::before {
 
 /* Stat values feel editorial in serif; numbers stay mono */
 .stat-value {
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-serif), Georgia, serif;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.03em;
-  font-size: 2rem;
+  font-size: 2.25rem;
   color: var(--foreground);
 }
 
@@ -147,7 +147,7 @@ body::before {
 
 .stat-value-win  { color: var(--primary); }
 .stat-value-acc  { color: var(--primary-hi); }
-.stat-value-style { color: var(--foreground); font-size: 1.25rem; font-family: var(--font-sans), system-ui, sans-serif; font-weight: 600; font-style: normal; letter-spacing: -0.01em; }
+.stat-value-style { color: var(--foreground); font-size: 1.5rem; font-family: var(--font-serif), Georgia, serif; font-weight: 500; font-style: italic; letter-spacing: -0.01em; }
 
 /* Score pill */
 .score-label { font-family: var(--font-mono), monospace; color: var(--primary); }
@@ -157,15 +157,16 @@ body::before {
 .insights-headline { border-left-color: var(--primary); }
 .insights-headline-eyebrow { font-family: var(--font-mono), monospace; }
 .insights-headline-text {
-  font-family: var(--font-sans), system-ui, sans-serif;
-  font-size: 0.95rem;
-  line-height: 1.6;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.05rem;
+  font-style: italic;
+  line-height: 1.55;
   color: var(--foreground);
 }
 
 .insights-section-title { font-family: var(--font-mono), monospace; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted-fg); }
 
-.kpi-tile-name { font-family: var(--font-sans), system-ui, sans-serif; font-weight: 600; letter-spacing: -0.015em; font-size: 1rem; }
+.kpi-tile-name { font-family: var(--font-serif), Georgia, serif; font-weight: 500; letter-spacing: -0.01em; font-size: 1.15rem; }
 
 /* Tone updates to match palette */
 .tone-good { color: var(--primary-hi); }
@@ -1393,11 +1394,11 @@ body::before {
 }
 
 .player-card-acc-val {
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-serif), Georgia, serif;
   font-variant-numeric: tabular-nums;
-  font-size: 1.6rem;
-  font-weight: 600;
-  letter-spacing: -0.025em;
+  font-size: 1.7rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
   line-height: 1;
   color: var(--foreground);
 }
