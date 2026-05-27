@@ -949,6 +949,236 @@ body {
   color: white;
 }
 
+/* Tabs */
+.tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-button {
+  position: relative;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted-fg);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.tab-button:hover {
+  color: var(--foreground);
+}
+
+.tab-button-active {
+  color: var(--foreground);
+}
+
+.tab-button-active::after {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: -1px;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 2px;
+}
+
+/* Insights */
+.insights-stack > * + * {
+  margin-top: 1.5rem;
+}
+
+.insights-headline {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+}
+
+.insights-headline-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted-fg);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.insights-headline-text {
+  color: var(--foreground);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.insights-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+
+.insights-section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 1rem;
+}
+
+.insights-section-caption {
+  font-size: 0.75rem;
+  color: var(--muted-fg);
+  margin-top: 0.75rem;
+  line-height: 1.5;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .insights-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Tables shared by insights */
+.data-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.data-table thead th {
+  padding: 0.5rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted-fg);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.data-table tbody td {
+  padding: 0.5rem 0.5rem;
+  border-bottom: 1px solid #27272a33;
+  color: var(--foreground);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.data-table .name {
+  font-weight: 500;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Quality tone */
+.tone-good { color: #34d399; }
+.tone-warn { color: #fbbf24; }
+.tone-bad  { color: #f87171; }
+.tone-mute { color: var(--muted-fg); }
+
+/* KPI tiles for best/worst opening */
+.kpi-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.kpi-tile {
+  padding: 0.875rem 1rem;
+  background: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.kpi-tile-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted-fg);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.25rem;
+}
+
+.kpi-tile-name {
+  font-size: 1.0rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 0.25rem;
+}
+
+.kpi-tile-meta {
+  font-size: 0.8rem;
+  color: var(--muted-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Horizontal bar charts (blunder buckets) */
+.hbar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hbar-row + .hbar-row {
+  margin-top: 0.5rem;
+}
+
+.hbar-label {
+  font-size: 0.7rem;
+  color: var(--muted-fg);
+  width: 4rem;
+  flex-shrink: 0;
+}
+
+.hbar-track {
+  flex: 1;
+  height: 0.5rem;
+  background: var(--accent);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.hbar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 9999px;
+}
+
+.hbar-count {
+  font-size: 0.75rem;
+  color: var(--foreground);
+  width: 2rem;
+  text-align: right;
+}
+
+.empty-state {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted-fg);
+  font-size: 0.85rem;
+}
+
 /* Move Info (under board) */
 .move-info-card {
   background: rgba(39, 39, 42, 0.4);

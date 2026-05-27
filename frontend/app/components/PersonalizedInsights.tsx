@@ -44,16 +44,20 @@ interface Props {
 }
 
 const phaseLabel: Record<string, string> = {
-    opening: "Opening (≤ move 10)",
-    middlegame: "Middlegame (11–29)",
-    endgame: "Endgame (≥ move 30)",
+    opening: "Opening · moves 1–10",
+    middlegame: "Middlegame · 11–29",
+    endgame: "Endgame · 30+",
 };
 
 function qualityTone(q: number): string {
-    if (q >= 1) return "text-green-400";
-    if (q >= 0) return "text-gray-300";
-    if (q >= -0.5) return "text-yellow-400";
-    return "text-red-400";
+    if (q >= 1) return "tone-good";
+    if (q >= 0) return "tone-mute";
+    if (q >= -0.5) return "tone-warn";
+    return "tone-bad";
+}
+
+function fmtQuality(q: number): string {
+    return `${q > 0 ? "+" : ""}${q.toFixed(2)}`;
 }
 
 export default function PersonalizedInsights({ username }: Props) {
@@ -86,14 +90,18 @@ export default function PersonalizedInsights({ username }: Props) {
     }, [username]);
 
     if (loading) {
-        return <div className="chart-card"><div className="chart-empty-state">Loading insights…</div></div>;
+        return (
+            <div className="insights-section">
+                <div className="empty-state">Loading insights…</div>
+            </div>
+        );
     }
     if (error || !data) {
         return (
-            <div className="chart-card">
-                <div className="chart-empty-state">
+            <div className="insights-section">
+                <div className="empty-state">
                     {error === "HTTP 404"
-                        ? "Analyze some games first to unlock personalized insights."
+                        ? "Analyze a few games first to unlock personalized insights."
                         : `Could not load insights${error ? `: ${error}` : ""}`}
                 </div>
             </div>
@@ -103,134 +111,132 @@ export default function PersonalizedInsights({ username }: Props) {
     const headline = buildHeadline(data);
 
     return (
-        <div className="space-y-6">
+        <div className="insights-stack">
             {/* Headline */}
-            <div className="ai-insights-card">
-                <div className="ai-header">
-                    <div>
-                        <h2 className="ai-title">Personalized Insights</h2>
-                        <p className="ai-subtitle">
-                            Across {data.games_analyzed} analyzed games
-                        </p>
-                    </div>
+            <div className="insights-headline">
+                <div className="insights-headline-eyebrow">
+                    Insights · {data.games_analyzed} games analyzed
                 </div>
-                <div className="ai-content-box">
-                    <p className="ai-text">{headline}</p>
-                </div>
+                <div className="insights-headline-text">{headline}</div>
             </div>
 
             {/* Phase quality */}
-            <div className="chart-card">
-                <h3 className="chart-title">Phase quality</h3>
-                <table className="opening-table">
-                    <thead className="opening-thead">
-                        <tr className="opening-th-row">
-                            <th className="opening-th opening-th-left">Phase</th>
-                            <th className="opening-th opening-th-right">Moves</th>
-                            <th className="opening-th opening-th-right">Avg quality</th>
-                            <th className="opening-th opening-th-right">Bad-move %</th>
+            <div className="insights-section">
+                <h3 className="insights-section-title">Phase quality</h3>
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Phase</th>
+                            <th className="num">Moves</th>
+                            <th className="num">Avg quality</th>
+                            <th className="num">Bad-move %</th>
                         </tr>
                     </thead>
-                    <tbody className="opening-tbody">
+                    <tbody>
                         {data.phases.map((p) => (
-                            <tr key={p.phase} className="opening-tr">
-                                <td className="opening-td-name">{phaseLabel[p.phase] || p.phase}</td>
-                                <td className="opening-td-count">{p.moves}</td>
-                                <td className={`opening-td-count ${qualityTone(p.avg_quality)}`}>
-                                    {p.avg_quality > 0 ? "+" : ""}
-                                    {p.avg_quality.toFixed(2)}
+                            <tr key={p.phase}>
+                                <td className="name">{phaseLabel[p.phase] || p.phase}</td>
+                                <td className="num">{p.moves}</td>
+                                <td className={`num ${qualityTone(p.avg_quality)}`}>
+                                    {fmtQuality(p.avg_quality)}
                                 </td>
-                                <td className="opening-td-count">{p.bad_move_rate.toFixed(1)}%</td>
+                                <td className="num">{p.bad_move_rate.toFixed(1)}%</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
-                <p className="text-xs text-gray-400 mt-3">
-                    Quality is a weighted score: Brilliant +4, Great +3, Best +2, Excellent +1, Good 0, Inaccuracy −1, Mistake/Miss −2, Blunder −4.
+                <p className="insights-section-caption">
+                    Quality score: Brilliant +4 · Great +3 · Best +2 · Excellent +1 · Inaccuracy −1 · Mistake/Miss −2 · Blunder −4.
                 </p>
             </div>
 
-            {/* Opening performance */}
-            <div className="chart-grid">
-                <div className="chart-card">
-                    <h3 className="chart-title">Best & worst openings</h3>
-                    {data.best_opening ? (
-                        <div className="mb-3">
-                            <div className="text-sm text-gray-400">Best (≥2 games)</div>
-                            <div className="text-lg text-green-400">{data.best_opening.opening}</div>
-                            <div className="text-sm text-gray-300">
-                                {data.best_opening.win_rate}% win · {data.best_opening.games} games · {data.best_opening.avg_accuracy}% acc
-                            </div>
-                        </div>
+            {/* Openings */}
+            <div className="insights-grid">
+                <div className="insights-section">
+                    <h3 className="insights-section-title">Best & worst openings</h3>
+                    {!data.best_opening && !data.worst_opening ? (
+                        <div className="empty-state">Need at least 2 games per opening.</div>
                     ) : (
-                        <div className="chart-empty-state">Need more games per opening.</div>
-                    )}
-                    {data.worst_opening && data.worst_opening.opening !== data.best_opening?.opening && (
-                        <div>
-                            <div className="text-sm text-gray-400">Worst (≥2 games)</div>
-                            <div className="text-lg text-red-400">{data.worst_opening.opening}</div>
-                            <div className="text-sm text-gray-300">
-                                {data.worst_opening.win_rate}% win · {data.worst_opening.games} games · {data.worst_opening.avg_accuracy}% acc
-                            </div>
+                        <div className="kpi-row">
+                            {data.best_opening && (
+                                <div className="kpi-tile">
+                                    <div className="kpi-tile-label tone-good">Best</div>
+                                    <div className="kpi-tile-name">{data.best_opening.opening}</div>
+                                    <div className="kpi-tile-meta">
+                                        {data.best_opening.win_rate}% win · {data.best_opening.games} games · {data.best_opening.avg_accuracy}% acc
+                                    </div>
+                                </div>
+                            )}
+                            {data.worst_opening && data.worst_opening.opening !== data.best_opening?.opening && (
+                                <div className="kpi-tile">
+                                    <div className="kpi-tile-label tone-bad">Worst</div>
+                                    <div className="kpi-tile-name">{data.worst_opening.opening}</div>
+                                    <div className="kpi-tile-meta">
+                                        {data.worst_opening.win_rate}% win · {data.worst_opening.games} games · {data.worst_opening.avg_accuracy}% acc
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
-                <div className="chart-card">
-                    <h3 className="chart-title">Top openings (most played)</h3>
-                    <div className="opening-list-container custom-scrollbar">
-                        <table className="opening-table">
-                            <thead className="opening-thead">
-                                <tr className="opening-th-row">
-                                    <th className="opening-th opening-th-left">Opening</th>
-                                    <th className="opening-th opening-th-right">Games</th>
-                                    <th className="opening-th opening-th-right">Win %</th>
-                                    <th className="opening-th opening-th-right">Acc</th>
+                <div className="insights-section">
+                    <h3 className="insights-section-title">Most played openings</h3>
+                    {data.openings.length === 0 ? (
+                        <div className="empty-state">Not enough data yet.</div>
+                    ) : (
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Opening</th>
+                                    <th className="num">Games</th>
+                                    <th className="num">Win %</th>
+                                    <th className="num">Acc</th>
                                 </tr>
                             </thead>
-                            <tbody className="opening-tbody">
+                            <tbody>
                                 {data.openings.map((o, i) => (
-                                    <tr key={i} className="opening-tr">
-                                        <td className="opening-td-name" title={o.opening}>{o.opening}</td>
-                                        <td className="opening-td-count">{o.games}</td>
-                                        <td className="opening-td-count">{o.win_rate}%</td>
-                                        <td className="opening-td-count">{o.avg_accuracy}%</td>
+                                    <tr key={i}>
+                                        <td className="name" title={o.opening}>{o.opening}</td>
+                                        <td className="num">{o.games}</td>
+                                        <td className="num">{o.win_rate}%</td>
+                                        <td className="num">{o.avg_accuracy}%</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-                    </div>
+                    )}
                 </div>
             </div>
 
             {/* Blunder patterns */}
-            <div className="chart-grid">
-                <div className="chart-card">
-                    <h3 className="chart-title">When bad moves happen</h3>
+            <div className="insights-grid">
+                <div className="insights-section">
+                    <h3 className="insights-section-title">When bad moves happen</h3>
                     {data.blunder_buckets.length === 0 ? (
-                        <div className="chart-empty-state">No bad moves recorded — clean play.</div>
+                        <div className="empty-state">No bad moves recorded yet.</div>
                     ) : (
                         <BlunderBars buckets={data.blunder_buckets} />
                     )}
                 </div>
 
-                <div className="chart-card">
-                    <h3 className="chart-title">Bad moves by piece captured</h3>
+                <div className="insights-section">
+                    <h3 className="insights-section-title">Bad moves by piece captured</h3>
                     {data.blunders_by_captured_piece.length === 0 ? (
-                        <div className="chart-empty-state">No capture-related bad moves.</div>
+                        <div className="empty-state">No capture-related bad moves.</div>
                     ) : (
-                        <table className="opening-table">
-                            <thead className="opening-thead">
-                                <tr className="opening-th-row">
-                                    <th className="opening-th opening-th-left">Piece you took</th>
-                                    <th className="opening-th opening-th-right">Bad moves</th>
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Piece you took</th>
+                                    <th className="num">Bad moves</th>
                                 </tr>
                             </thead>
-                            <tbody className="opening-tbody">
+                            <tbody>
                                 {data.blunders_by_captured_piece.map((b, i) => (
-                                    <tr key={i} className="opening-tr">
-                                        <td className="opening-td-name">{b.piece}</td>
-                                        <td className="opening-td-count">{b.count}</td>
+                                    <tr key={i}>
+                                        <td className="name">{b.piece}</td>
+                                        <td className="num">{b.count}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -245,17 +251,14 @@ export default function PersonalizedInsights({ username }: Props) {
 function BlunderBars({ buckets }: { buckets: BlunderBucket[] }) {
     const max = Math.max(...buckets.map((b) => b.count), 1);
     return (
-        <div className="space-y-2">
+        <div>
             {buckets.map((b) => (
-                <div key={b.range} className="flex items-center gap-3">
-                    <div className="text-xs text-gray-400 w-16">moves {b.range}</div>
-                    <div className="flex-1 bg-gray-800 rounded h-4 overflow-hidden">
-                        <div
-                            className="bg-red-500 h-full"
-                            style={{ width: `${(b.count / max) * 100}%` }}
-                        />
+                <div key={b.range} className="hbar-row">
+                    <div className="hbar-label">moves {b.range}</div>
+                    <div className="hbar-track">
+                        <div className="hbar-fill" style={{ width: `${(b.count / max) * 100}%` }} />
                     </div>
-                    <div className="text-xs text-gray-300 w-8 text-right">{b.count}</div>
+                    <div className="hbar-count">{b.count}</div>
                 </div>
             ))}
         </div>
@@ -268,22 +271,22 @@ function buildHeadline(d: Insights): string {
         const wp = d.phases.find((p) => p.phase === d.weakest_phase);
         if (wp) {
             bits.push(
-                `Weakest phase: ${d.weakest_phase} (avg quality ${wp.avg_quality > 0 ? "+" : ""}${wp.avg_quality.toFixed(2)}, ${wp.bad_move_rate.toFixed(1)}% bad moves).`
+                `Weakest phase is your ${d.weakest_phase} (avg quality ${fmtQuality(wp.avg_quality)}, ${wp.bad_move_rate.toFixed(1)}% bad moves).`
             );
         }
     }
     if (d.worst_opening && d.worst_opening.win_rate < 50 && d.worst_opening.games >= 3) {
         bits.push(
-            `Struggle opening: ${d.worst_opening.opening} (${d.worst_opening.win_rate}% over ${d.worst_opening.games}).`
+            `You struggle with ${d.worst_opening.opening} (${d.worst_opening.win_rate}% over ${d.worst_opening.games} games).`
         );
     }
     if (d.best_opening && d.best_opening.win_rate >= 60 && d.best_opening.games >= 3) {
         bits.push(
-            `Strong with: ${d.best_opening.opening} (${d.best_opening.win_rate}% over ${d.best_opening.games}).`
+            `You're strong in ${d.best_opening.opening} (${d.best_opening.win_rate}% over ${d.best_opening.games}).`
         );
     }
     if (d.worst_move_range) {
-        bits.push(`Most bad moves happen around moves ${d.worst_move_range}.`);
+        bits.push(`Most bad moves cluster around moves ${d.worst_move_range}.`);
     }
     return bits.length ? bits.join(" ") : "Not enough data yet — analyze a few more games.";
 }

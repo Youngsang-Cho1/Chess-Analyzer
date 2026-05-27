@@ -169,24 +169,16 @@ export default function Home() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-gray-700">
+        <div className="tab-bar">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`px-4 py-2 -mb-px border-b-2 transition-colors ${
-              activeTab === "overview"
-                ? "border-blue-400 text-blue-300"
-                : "border-transparent text-gray-400 hover:text-gray-200"
-            }`}
+            className={`tab-button ${activeTab === "overview" ? "tab-button-active" : ""}`}
           >
             Overview
           </button>
           <button
             onClick={() => setActiveTab("insights")}
-            className={`px-4 py-2 -mb-px border-b-2 transition-colors ${
-              activeTab === "insights"
-                ? "border-blue-400 text-blue-300"
-                : "border-transparent text-gray-400 hover:text-gray-200"
-            }`}
+            className={`tab-button ${activeTab === "insights" ? "tab-button-active" : ""}`}
           >
             Insights
           </button>
