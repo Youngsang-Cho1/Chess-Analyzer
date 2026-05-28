@@ -392,9 +392,10 @@ def analyze_game(pgn_string: str):
                 second_cp is None
                 or abs(my_cp - second_cp) <= 100
             )
+            # SEE already proved this loses material — the engine accepting it
+            # (best/near-best) is part of why it's brilliant, not a disqualifier.
             is_brilliant = (
-                move_uci != best_move    # if it IS the best move, it's Best/Great, not Brilliant
-                and cp_loss <= 80        # nearly best — engine accepts the sacrifice
+                cp_loss <= 80            # engine accepts the sacrifice
                 and -200 < my_cp < 800   # exclude already-winning or already-lost positions
                 and second_gap_ok        # 2nd-best shouldn't be miles behind
             )
