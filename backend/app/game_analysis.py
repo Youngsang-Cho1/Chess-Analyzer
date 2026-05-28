@@ -385,19 +385,14 @@ def analyze_game(pgn_string: str):
                 if (is_white and best_mate_in > 0) or (not is_white and best_mate_in < 0):
                     classification = "Miss"
 
-        # Brilliant: a sacrifice that's NOT the obvious engine pick, but still
-        # nearly optimal — and only when not already crushingly winning.
+        # Brilliant: an SEE-verified sacrifice the engine still accepts as
+        # near-best, in a position that's not already crushingly winning.
+        # A large gap to the 2nd-best move is fine — that's often what makes
+        # the sacrifice brilliant in the first place.
         if is_sac and not opening:
-            second_gap_ok = (
-                second_cp is None
-                or abs(my_cp - second_cp) <= 100
-            )
-            # SEE already proved this loses material — the engine accepting it
-            # (best/near-best) is part of why it's brilliant, not a disqualifier.
             is_brilliant = (
                 cp_loss <= 80            # engine accepts the sacrifice
                 and -200 < my_cp < 800   # exclude already-winning or already-lost positions
-                and second_gap_ok        # 2nd-best shouldn't be miles behind
             )
             if is_brilliant:
                 classification = "Brilliant"
