@@ -10,9 +10,9 @@ interface Props {
 }
 
 const COLORS = {
-    'Win': '#10b981',
-    'Loss': '#ef4444',
-    'Draw': '#94a3b8'
+    Win: "#99cc68",     // var(--cls-best)
+    Loss: "#ca3431",    // var(--cls-blunder)
+    Draw: "#8A8478",    // muted
 };
 
 export default function ResultDistributionChart({ history }: Props) {
@@ -57,9 +57,21 @@ export default function ResultDistributionChart({ history }: Props) {
                             ))}
                         </Pie>
                         <Tooltip
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            contentStyle={{
+                                background: "var(--card-bg)",
+                                border: "1px solid var(--border)",
+                                borderRadius: 4,
+                                fontSize: 12,
+                            }}
+                            labelStyle={{ color: "var(--foreground)" }}
+                            itemStyle={{ color: "var(--primary)" }}
                         />
-                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                        <Legend
+                            verticalAlign="bottom"
+                            height={36}
+                            iconType="circle"
+                            wrapperStyle={{ fontSize: 12, color: "var(--muted-fg)" }}
+                        />
                     </PieChart>
                 </ResponsiveContainer>
             </div>

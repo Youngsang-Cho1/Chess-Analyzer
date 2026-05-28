@@ -329,30 +329,28 @@ body::before {
 .stat-box {
   background: var(--card-bg);
   border: 1px solid var(--border);
+  border-top: 2px solid var(--primary);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   transition: all var(--transition);
-  padding: 1.5rem;
-  text-align: center;
+  padding: 1.25rem 1.25rem 1.1rem;
+  text-align: left;
   position: relative;
   overflow: hidden;
 }
 
 .stat-box:hover {
   box-shadow: var(--shadow-md);
-  border-color: #3f3f46;
+  border-color: var(--primary-hi);
+  border-top-color: var(--primary-hi);
 }
 
-.stat-box::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--border), transparent);
-  opacity: 0.5;
-}
+/* Each tile gets a thematic top accent (won = green-ish, accuracy = gold, etc.) */
+.stats-grid .stat-box:nth-child(1) { border-top-color: var(--cls-best); }
+.stats-grid .stat-box:nth-child(1):hover { border-top-color: var(--cls-best); }
+.stats-grid .stat-box:nth-child(2) { border-top-color: var(--primary); }
+.stats-grid .stat-box:nth-child(3) { border-top-color: var(--cls-great); }
+.stats-grid .stat-box:nth-child(4) { border-top-color: var(--foreground); }
 
 .stat-label {
   font-size: 0.7rem;
@@ -370,20 +368,14 @@ body::before {
   letter-spacing: -0.02em;
 }
 
-.stat-value-win {
-  color: #34d399;
-  /* Emerald 400 */
-}
-
-.stat-value-acc {
-  color: #60a5fa;
-  /* Blue 400 */
-}
-
+.stat-value-win   { color: var(--cls-best); }
+.stat-value-acc   { color: var(--primary); }
 .stat-value-style {
-  color: #a78bfa;
-  /* Violet 400 */
+  color: var(--cls-great);
   font-size: 1.5rem;
+  font-family: var(--font-serif), Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
 }
 
 /* Charts */
@@ -414,14 +406,16 @@ body::before {
 
 .chart-card:hover {
   box-shadow: var(--shadow-md);
-  border-color: #3f3f46;
+  border-color: var(--primary-low);
 }
 
 .chart-title {
-  font-size: 1.125rem;
-  font-weight: 700;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
   color: var(--foreground);
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -614,41 +608,48 @@ body::before {
 }
 
 .ai-icon {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
-  background: rgba(99, 102, 241, 0.1);
-  /* Indigo tint */
+  background: linear-gradient(135deg, var(--primary-hi), var(--primary));
+  color: var(--primary-fg);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
-  color: var(--primary);
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
 }
 
 .ai-title {
-  font-size: 1.125rem;
-  font-weight: 700;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
   color: var(--foreground);
 }
 
 .ai-subtitle {
-  font-size: 0.875rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
   color: var(--muted-fg);
 }
 
 .ai-content-box {
   background: var(--accent);
-  padding: 1.25rem;
+  padding: 1.1rem 1.25rem;
   border-radius: var(--radius-sm);
-  border: 1px solid transparent;
+  border: 1px solid var(--border-subtle);
 }
 
 .ai-text {
+  font-family: var(--font-sans), system-ui, sans-serif;
   color: #e4e4e7;
-  /* Zinc 200 */
-  line-height: 1.7;
-  font-weight: 500;
+  line-height: 1.65;
+  font-weight: 400;
   white-space: pre-line;
 }
 
@@ -673,13 +674,14 @@ body::before {
 }
 
 .opening-th {
-  padding: 0.75rem 0;
+  padding: 0.7rem 0;
   border-bottom: 1px solid var(--border);
-  font-size: 0.7rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
   font-weight: 600;
   color: var(--muted-fg);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.12em;
 }
 
 .opening-td-name {
@@ -923,23 +925,41 @@ body::before {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   transition: all var(--transition);
-  padding: 1.5rem;
+  padding: 1.25rem 1.25rem 1.1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.game-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 2px;
+  background: var(--primary);
+  opacity: 0.5;
+  transition: opacity var(--transition);
 }
 
 .game-card:hover {
   box-shadow: var(--shadow-md);
-  border-color: #3f3f46;
+  border-color: var(--primary-low);
 }
 
+.game-card:hover::before { opacity: 1; }
+
 .game-title {
-  font-weight: 700;
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 500;
   font-size: 1.1rem;
-  margin-bottom: 0.5rem;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.4rem;
   color: var(--foreground);
 }
 
 .game-info {
-  font-size: 0.85rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
   color: var(--muted-fg);
   margin-bottom: 1rem;
   display: flex;

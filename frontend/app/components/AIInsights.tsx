@@ -8,12 +8,10 @@ export default function AIInsights({ insight }: AIInsightsProps) {
     return (
         <div className="ai-insights-card">
             <div className="ai-header">
-                <div className="ai-icon">
-                    <span className="text-2xl"></span>
-                </div>
+                <div className="ai-icon">GM</div>
                 <div>
-                    <h2 className="ai-title">AI Coach's Analysis</h2>
-                    <p className="ai-subtitle">Personalized feedback based on your game analysis</p>
+                    <h2 className="ai-title">AI Coach</h2>
+                    <p className="ai-subtitle">Personalized feedback on your recent games</p>
                 </div>
             </div>
 

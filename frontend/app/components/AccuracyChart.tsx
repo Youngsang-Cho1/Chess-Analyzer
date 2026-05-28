@@ -29,27 +29,35 @@ export default function AccuracyChart({ history }: Props) {
             <div className="chart-container">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
                         <XAxis dataKey="id" hide />
                         <YAxis
                             domain={[0, 100]}
-                            tick={{ fontSize: 11, fill: '#64748b' }}
+                            tick={{ fontSize: 11, fill: "var(--muted-fg)" }}
                             tickLine={false}
                             axisLine={false}
                         />
                         <Tooltip
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             formatter={(value: any) => [`${Number(value).toFixed(1)}%`, "Accuracy"]}
                             labelFormatter={() => ""}
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                            cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                            contentStyle={{
+                                background: "var(--card-bg)",
+                                border: "1px solid var(--border)",
+                                borderRadius: 4,
+                                fontSize: 12,
+                            }}
+                            labelStyle={{ color: "var(--foreground)" }}
+                            itemStyle={{ color: "var(--primary)" }}
+                            cursor={{ stroke: "var(--primary)", strokeWidth: 1, strokeDasharray: "4 4", opacity: 0.5 }}
                         />
                         <Line
                             type="monotone"
                             dataKey="accuracy"
-                            stroke="#2563eb"
-                            strokeWidth={3}
-                            dot={{ r: 4, fill: "#2563eb", strokeWidth: 2, stroke: '#fff' }}
-                            activeDot={{ r: 6, strokeWidth: 0 }}
+                            stroke="#D4A24C"
+                            strokeWidth={2}
+                            dot={{ r: 3, fill: "#E8C77D", strokeWidth: 1, stroke: "#0E0F12" }}
+                            activeDot={{ r: 5, fill: "#E8C77D", strokeWidth: 0 }}
                         />
                     </LineChart>
                 </ResponsiveContainer>
