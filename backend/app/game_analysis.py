@@ -392,7 +392,7 @@ def analyze_game(pgn_string: str):
         if is_sac and not opening:
             is_brilliant = (
                 cp_loss <= 80            # engine accepts the sacrifice
-                and -200 < my_cp < 800   # exclude already-winning or already-lost positions
+                and -200 < my_cp < 500   # exclude already-winning or already-lost positions
             )
             if is_brilliant:
                 classification = "Brilliant"
