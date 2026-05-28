@@ -36,17 +36,23 @@
   --input: #1E2128;
   --ring: var(--primary);
 
-  /* Move-classification colors — original Chess Analyzer palette */
+  /* Move-classification colors */
   --cls-brilliant: #26c2a3;   /* teal */
   --cls-great:     #5b8bb4;   /* slate blue */
-  --cls-best:      #99cc68;   /* lime */
-  --cls-excellent: #99cc68;
-  --cls-good:      #81b64c;   /* green */
+  --cls-best:      #4caf50;   /* deep green */
+  --cls-excellent: #81c784;   /* medium green */
+  --cls-good:      #a5d6a7;   /* light sage green */
   --cls-book:      #a88b5e;   /* brown */
   --cls-inaccuracy:#f7c631;   /* yellow */
   --cls-mistake:   #e6912b;   /* orange */
   --cls-blunder:   #ca3431;   /* red */
   --cls-miss:      #ff6b6b;   /* pink-red */
+
+  /* KPI tile accents */
+  --kpi-win:   var(--cls-best);   /* deep green */
+  --kpi-acc:   #4f8ce0;           /* blue */
+  --kpi-style: #a78bfa;           /* violet */
+  --kpi-games: #c7c2b5;           /* warm gray */
 
   /* Tighter, more editorial radii */
   --radius: 4px;
@@ -345,12 +351,12 @@ body::before {
   border-top-color: var(--primary-hi);
 }
 
-/* Each tile gets a thematic top accent (won = green-ish, accuracy = gold, etc.) */
-.stats-grid .stat-box:nth-child(1) { border-top-color: var(--cls-best); }
-.stats-grid .stat-box:nth-child(1):hover { border-top-color: var(--cls-best); }
-.stats-grid .stat-box:nth-child(2) { border-top-color: var(--primary); }
-.stats-grid .stat-box:nth-child(3) { border-top-color: var(--cls-great); }
-.stats-grid .stat-box:nth-child(4) { border-top-color: var(--foreground); }
+/* Each tile gets a thematic top accent */
+.stats-grid .stat-box:nth-child(1) { border-top-color: var(--kpi-win); }
+.stats-grid .stat-box:nth-child(2) { border-top-color: var(--kpi-acc); }
+.stats-grid .stat-box:nth-child(3) { border-top-color: var(--kpi-style); }
+.stats-grid .stat-box:nth-child(4) { border-top-color: var(--kpi-games); }
+.stats-grid .stat-box:hover { border-top-color: inherit; }
 
 .stat-label {
   font-size: 0.7rem;
@@ -368,10 +374,10 @@ body::before {
   letter-spacing: -0.02em;
 }
 
-.stat-value-win   { color: var(--cls-best); }
-.stat-value-acc   { color: var(--primary); }
+.stat-value-win   { color: var(--kpi-win); }
+.stat-value-acc   { color: var(--kpi-acc); }
 .stat-value-style {
-  color: var(--cls-great);
+  color: var(--kpi-style);
   font-size: 1.5rem;
   font-family: var(--font-serif), Georgia, serif;
   font-style: italic;

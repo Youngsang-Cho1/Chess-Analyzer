@@ -10,7 +10,7 @@ interface Props {
 }
 
 const COLORS = {
-    Win: "#99cc68",     // var(--cls-best)
+    Win: "#4caf50",     // deep green (var(--cls-best))
     Loss: "#ca3431",    // var(--cls-blunder)
     Draw: "#8A8478",    // muted
 };

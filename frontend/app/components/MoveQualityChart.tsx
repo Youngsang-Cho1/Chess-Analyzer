@@ -8,14 +8,14 @@ interface Props {
     username: string;
 }
 
-// Pulled from globals.css --cls-* tokens so everything matches.
+// Mirrors globals.css --cls-* tokens so everything matches.
 const COLORS: Record<string, string> = {
-    Brilliant: "#26c2a3",
-    Great: "#5b8bb4",
+    Brilliant: "#26c2a3",   // teal
+    Great: "#5b8bb4",       // slate blue
+    Best: "#4caf50",        // deep green
+    Excellent: "#81c784",   // medium green
+    Good: "#a5d6a7",        // light sage green
     Book: "#a88b5e",
-    Best: "#99cc68",
-    Excellent: "#99cc68",
-    Good: "#81b64c",
     Inaccuracy: "#f7c631",
     Mistake: "#e6912b",
     Blunder: "#ca3431",
