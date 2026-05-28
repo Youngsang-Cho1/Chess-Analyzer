@@ -169,6 +169,9 @@ def ignores_hanging_piece(board, move):
     one piece worth ≥ a minor that the opponent could win on the next move via
     a positive-SEE capture. This move neither moves that piece, captures on
     its square, nor blocks/defends it well enough to neutralize the threat.
+    The move must also NOT itself recoup the lost material (e.g. taking the
+    enemy queen while leaving a knight hanging is not a "brilliant ignoring
+    the threat" — it's just a trade).
 
     Returns the (largest) hanging value if so, else 0.
     """
@@ -187,6 +190,17 @@ def ignores_hanging_piece(board, move):
 
     # If the move addresses the threatened piece, it's not "ignoring" it.
     if move.from_square == worst_sq or move.to_square == worst_sq:
+        return 0
+
+    # If the move itself nets enough material to cover the hanging loss, it's
+    # a profitable trade, not a brilliant sacrifice. Use SEE on the move's
+    # target square; a capture of the enemy queen returns +9 and dwarfs the
+    # +3 hanging knight, so the net is positive material.
+    try:
+        move_gain = static_exchange_eval(board, move)
+    except Exception:
+        move_gain = 0
+    if move_gain >= worst:
         return 0
 
     # Did the move neutralize the threat (block, defend enough, capture an
