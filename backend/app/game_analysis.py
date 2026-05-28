@@ -394,8 +394,8 @@ def analyze_game(pgn_string: str):
             )
             is_brilliant = (
                 move_uci != best_move    # if it IS the best move, it's Best/Great, not Brilliant
-                and cp_loss <= 50        # nearly best — engine accepts the sacrifice
-                and -200 < my_cp < 600   # exclude already-winning or already-lost positions
+                and cp_loss <= 80        # nearly best — engine accepts the sacrifice
+                and -200 < my_cp < 800   # exclude already-winning or already-lost positions
                 and second_gap_ok        # 2nd-best shouldn't be miles behind
             )
             if is_brilliant:
