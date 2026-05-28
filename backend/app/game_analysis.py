@@ -135,6 +135,76 @@ def is_sacrifice(board, move):
     return see <= -2
 
 
+def _square_under_threat(board, color, square, min_value=3):
+    """Is `color`'s piece on `square` hanging? Computed as SEE for the enemy's
+    cheapest capture there: if they gain ≥ min_value, the piece is in danger.
+
+    Returns the gain value (≥ min_value) or 0 if not meaningfully threatened.
+    """
+    piece = board.piece_at(square)
+    if not piece or piece.color != color or piece.piece_type == chess.KING:
+        return 0
+    if PIECE_VALUES[piece.piece_type] < min_value:
+        return 0  # don't flag pawn hangs as "brilliant material"
+
+    attackers = board.attackers(not color, square)
+    if not attackers:
+        return 0
+
+    # Find the cheapest enemy attacker; SEE the capture they could play.
+    cheapest = min(attackers, key=lambda s: PIECE_VALUES[board.piece_at(s).piece_type])
+    capture = chess.Move(cheapest, square)
+    # Ensure it's the enemy's turn on the probe board so the capture is legal.
+    b = board.copy(stack=False)
+    if b.turn != (not color):
+        b.turn = not color
+    if capture not in b.legal_moves:
+        return 0
+    see = static_exchange_eval(b, capture)
+    return see if see >= min_value else 0
+
+
+def ignores_hanging_piece(board, move):
+    """A 'hanging-piece sacrifice': before this move, the mover has at least
+    one piece worth ≥ a minor that the opponent could win on the next move via
+    a positive-SEE capture. This move neither moves that piece, captures on
+    its square, nor blocks/defends it well enough to neutralize the threat.
+
+    Returns the (largest) hanging value if so, else 0.
+    """
+    mover = board.turn
+
+    worst = 0
+    worst_sq = None
+    for sq in chess.SQUARES:
+        threat = _square_under_threat(board, mover, sq, min_value=3)
+        if threat > worst:
+            worst = threat
+            worst_sq = sq
+
+    if worst_sq is None:
+        return 0
+
+    # If the move addresses the threatened piece, it's not "ignoring" it.
+    if move.from_square == worst_sq or move.to_square == worst_sq:
+        return 0
+
+    # Did the move neutralize the threat (block, defend enough, capture an
+    # attacker)? Recheck the same square *after* the move; if the enemy can
+    # no longer capture profitably, the threat is handled.
+    b = board.copy(stack=False)
+    b.push(move)
+    # After our move it is opponent's turn — _square_under_threat expects the
+    # piece's owner. We check the same square (piece may have moved? no, we
+    # checked above). Still our piece sits there unless captured en passant
+    # etc. — _square_under_threat returns 0 if piece is gone or safe.
+    still_threat = _square_under_threat(b, mover, worst_sq, min_value=3)
+    if still_threat == 0:
+        return 0  # the move handled it implicitly
+
+    return worst
+
+
 def get_score_val(move_data):
     # Handle Stockfish get_evaluation() format {'type': 'cp'/'mate', 'value': ...}
     if 'type' in move_data:
@@ -313,10 +383,11 @@ def analyze_game(pgn_string: str):
         if len(top_moves) > 1:
             second_score = get_score_val(top_moves[1])
 
-        # Check Sacrifice (Must be done while board is popped / before move is pushed)
+        # Check Sacrifice / hanging-piece (board must be in pre-move state)
         is_sac = is_sacrifice(board, move)
+        hanging_value = ignores_hanging_piece(board, move)
 
-        board.push(move) 
+        board.push(move)
         
         # 3. Evaluate Current Position
         engine.set_fen_position(board.fen())
@@ -385,16 +456,15 @@ def analyze_game(pgn_string: str):
                 if (is_white and best_mate_in > 0) or (not is_white and best_mate_in < 0):
                     classification = "Miss"
 
-        # Brilliant: an SEE-verified sacrifice the engine still accepts as
-        # near-best, in a position that's not already crushingly winning.
-        # A large gap to the 2nd-best move is fine — that's often what makes
-        # the sacrifice brilliant in the first place.
-        if is_sac and not opening:
-            is_brilliant = (
-                cp_loss <= 80            # engine accepts the sacrifice
-                and -200 < my_cp < 500   # exclude already-winning or already-lost positions
-            )
-            if is_brilliant:
+        # Brilliant — two paths.
+        # (1) Direct sacrifice: SEE proves the move itself loses material at
+        #     its target square, and the engine still rates it best/near-best.
+        # (2) Hanging-piece sacrifice: a piece of mine is hanging *before* this
+        #     move; I ignore it, the engine still says this is the best plan.
+        #     That's the "ignoring the threat on your bishop" pattern.
+        if not opening:
+            in_safe_range = (-200 < my_cp < 500) and (cp_loss <= 80)
+            if in_safe_range and (is_sac or hanging_value > 0):
                 classification = "Brilliant"
 
         # 5. Accuracy Calculation 
