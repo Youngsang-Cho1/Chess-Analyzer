@@ -4,9 +4,10 @@ FROM python:3.11-slim
 # working directory
 WORKDIR /app
 
-# install stockfish
+# install stockfish + libgomp (required by LightGBM)
 RUN apt-get update && apt-get install -y \
     stockfish \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # install python packages

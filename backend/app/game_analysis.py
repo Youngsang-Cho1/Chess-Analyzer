@@ -59,18 +59,136 @@ def get_win_prob(cp):
     # sigmoid function for getting the win probability based on the current centipawn score
     return 50 + 50 * (2 / (1 + exp(-0.00368 * cp)) - 1)
 
-def get_classification(win_diff):
-    """Chess.com Expected Points Model (win% loss based)"""
-    if win_diff <= 2:    
-        return "Excellent"
-    if win_diff <= 5:    
-        return "Good"
-    if win_diff <= 10:   
-        return "Inaccuracy"
-    if win_diff <= 20:   
-        return "Mistake"
-    
-    return "Blunder"     
+## Move-classification thresholds (chess.com Expected Points Model, % points)
+THRESH_EXCELLENT  = 2
+THRESH_GOOD       = 5
+THRESH_INACCURACY = 10
+THRESH_MISTAKE    = 20
+
+## Brilliant gating
+BRILLIANT_CP_LOSS_MAX = 80
+BRILLIANT_MY_CP_MIN   = -200
+BRILLIANT_MY_CP_MAX   = 500
+
+## Great move: best move + 2nd-best is much worse, in roughly balanced position
+GREAT_SECOND_GAP_MIN  = 400
+GREAT_MY_CP_LIMIT     = 500
+
+## Miss: failed to punish opponent's bad move. Requires (a) prev opponent move
+## was bad enough, and (b) our reply is materially worse than the best reply.
+MISS_PREV_BAD_CLASSES = {"Mistake", "Blunder", "Miss"}
+MISS_MIN_CP_LOSS      = 150     # we left at least 1.5 pawns on the table
+MISS_MIN_BEST_CP      = 150     # the punishing line had to be visibly winning
+
+
+def classify_by_win_diff(win_diff: float) -> str:
+    """Chess.com Expected Points Model — pure win%-loss tiers."""
+    if win_diff <= THRESH_EXCELLENT:  return "Excellent"
+    if win_diff <= THRESH_GOOD:       return "Good"
+    if win_diff <= THRESH_INACCURACY: return "Inaccuracy"
+    if win_diff <= THRESH_MISTAKE:    return "Mistake"
+    return "Blunder"
+
+
+def classify_move(
+    *,
+    move_uci: str,
+    best_move_uci: str,
+    is_only_legal: bool,
+    is_book: bool,
+    win_diff: float,
+    cp_loss: int,
+    my_cp: int,
+    best_cp: int,
+    second_cp: int | None,
+    my_mate_in: int | None,
+    best_mate_in: int | None,
+    is_white: bool,
+    is_sac: bool,
+    hanging_value: int,
+    prev_classification: str | None,
+) -> str:
+    """Single source of truth for move classification.
+
+    Order matters: Book > Best/Great/Forced > tier (Excellent..Blunder)
+    > Miss override > Brilliant override.
+    """
+    # 1. Book moves
+    if is_book:
+        return "Book"
+
+    # 2. Best move family (and its richer variants)
+    if move_uci == best_move_uci:
+        cls = "Forced" if is_only_legal else "Best"
+        # Great: clearly better than the second-best response, in a balanced game
+        if (
+            second_cp is not None
+            and abs(second_cp - best_cp) >= GREAT_SECOND_GAP_MIN
+            and -GREAT_MY_CP_LIMIT < my_cp < GREAT_MY_CP_LIMIT
+        ):
+            cls = "Great"
+    else:
+        # 3. Win%-loss tier for non-best moves
+        cls = classify_by_win_diff(win_diff)
+
+        # 4. Miss override (Chess.com semantic: failed to punish a bad move)
+        if _is_miss(
+            cls=cls,
+            prev_classification=prev_classification,
+            cp_loss=cp_loss,
+            best_cp=best_cp,
+            my_cp=my_cp,
+            my_mate_in=my_mate_in,
+            best_mate_in=best_mate_in,
+            is_white=is_white,
+        ):
+            cls = "Miss"
+
+    # 5. Brilliant override — only for non-opening, balanced positions,
+    # where the engine still accepts a material-losing move.
+    if (
+        not is_book
+        and (is_sac or hanging_value > 0)
+        and cp_loss <= BRILLIANT_CP_LOSS_MAX
+        and BRILLIANT_MY_CP_MIN < my_cp < BRILLIANT_MY_CP_MAX
+    ):
+        cls = "Brilliant"
+
+    return cls
+
+
+def _is_miss(
+    *,
+    cls: str,
+    prev_classification: str | None,
+    cp_loss: int,
+    best_cp: int,
+    my_cp: int,
+    my_mate_in: int | None,
+    best_mate_in: int | None,
+    is_white: bool,
+) -> bool:
+    """Miss = failed to capitalize on opponent's bad move OR missed a forced mate.
+
+    Forced-mate miss: engine had mate but we didn't play into it.
+    Tactical miss: opponent just blundered/missed, the punishing line was
+    clearly winning (best_cp ≥ +150), and our reply gave up significant
+    material vs. that line (cp_loss ≥ 150).
+    """
+    # (A) Missed a forced mate that was ours
+    if best_mate_in is not None and my_mate_in is None:
+        ours = (is_white and best_mate_in > 0) or (not is_white and best_mate_in < 0)
+        if ours:
+            return True
+
+    # (B) Failed-to-punish tactical miss
+    if prev_classification in MISS_PREV_BAD_CLASSES:
+        if cp_loss >= MISS_MIN_CP_LOSS and best_cp >= MISS_MIN_BEST_CP:
+            # Only escalate from non-Blunder tiers — a Blunder already conveys
+            # the magnitude. Miss should NOT downgrade a Blunder.
+            if cls != "Blunder":
+                return True
+    return False
 
 PIECE_VALUES = {
     chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
@@ -325,7 +443,8 @@ def analyze_game(pgn_string: str):
     
     analysis_results = []
     prev_score = 0
-    
+    prev_classification: str | None = None  # opponent's previous move class (drives Miss)
+
     # 1. Parse opening name from Chess.com ECOUrl header
     eco_url = game.headers.get("ECOUrl", "")
     pgn_opening = "Opening Move"
@@ -426,60 +545,28 @@ def analyze_game(pgn_string: str):
         prev_win_prob = get_win_prob(prev_cp_pers)
         curr_win_prob = get_win_prob(my_cp)
         best_win_prob = get_win_prob(best_cp)
-        
+
         # 4. Classify Move
-        win_diff = best_win_prob - curr_win_prob
-        if win_diff < 0: 
-            win_diff = 0
-        
-        cp_loss = best_cp - my_cp
-        if cp_loss < 0:
-            cp_loss = 0
-            
-        # Calculate Previous Win Probability
-        prev_cp_pers = prev_score if is_white else -prev_score
-        prev_win_prob = get_win_prob(prev_cp_pers)
-        
-        classification = "Normal"
+        win_diff = max(0, best_win_prob - curr_win_prob)
+        cp_loss = max(0, best_cp - my_cp)
 
-        # if book move
-        if opening:
-            classification = "Book"
-        # if best move, check Best, Great, Forced
-        elif move_uci == best_move:
-            if len(top_moves) == 1:
-                classification = "Forced" # only available move
-            else:
-                classification = "Best"
-            
-            # Great Move: Best Move + large gap to 2nd best
-            if second_cp is not None:
-                second_cp_loss = abs(second_cp - best_cp)
-                # 2nd best is much worse and position is balanced
-                if second_cp_loss >= 400 and -500 < my_cp < 500:
-                     classification = "Great"
-        # if not best move, check Brilliant & other Classes
-        else:
-            classification = get_classification(win_diff)
-            
-            if (best_cp > 300 and my_cp < 100) or (best_cp > 2000 and my_cp < 1000) or (best_cp > 500 and cp_loss > 300 and classification != "Blunder"):
-                classification = "Miss"
-            
-            # If missed a forced mate
-            if best_mate_in is not None and mate_in is None:
-                if (is_white and best_mate_in > 0) or (not is_white and best_mate_in < 0):
-                    classification = "Miss"
-
-        # Brilliant — two paths.
-        # (1) Direct sacrifice: SEE proves the move itself loses material at
-        #     its target square, and the engine still rates it best/near-best.
-        # (2) Hanging-piece sacrifice: a piece of mine is hanging *before* this
-        #     move; I ignore it, the engine still says this is the best plan.
-        #     That's the "ignoring the threat on your bishop" pattern.
-        if not opening:
-            in_safe_range = (-200 < my_cp < 500) and (cp_loss <= 80)
-            if in_safe_range and (is_sac or hanging_value > 0):
-                classification = "Brilliant"
+        classification = classify_move(
+            move_uci=move_uci,
+            best_move_uci=best_move,
+            is_only_legal=len(top_moves) == 1,
+            is_book=opening,
+            win_diff=win_diff,
+            cp_loss=cp_loss,
+            my_cp=my_cp,
+            best_cp=best_cp,
+            second_cp=second_cp,
+            my_mate_in=mate_in,
+            best_mate_in=best_mate_in,
+            is_white=is_white,
+            is_sac=is_sac,
+            hanging_value=hanging_value,
+            prev_classification=prev_classification,
+        )
 
         # 5. Accuracy Calculation 
         move_accuracy = 103.1668 * exp(-0.04354 * win_diff) - 3.1669
@@ -512,7 +599,8 @@ def analyze_game(pgn_string: str):
         print(f"Move: {move_san:<10} | Class: {classification:<10} | Acc: {result['accuracy']:>5.1f}% | Eval: {curr_score_white:>+5} (White Win%: {white_win_prob:.1f}%) | Opening: {current_opening}") 
 
         prev_score = curr_score_white
-        
+        prev_classification = classification
+
     # Calculate Game Summary
     white_moves = [res for idx, res in enumerate(analysis_results) if idx % 2 == 0]
     black_moves = [res for idx, res in enumerate(analysis_results) if idx % 2 == 1]

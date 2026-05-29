@@ -12,10 +12,13 @@ they leak the label.
 from __future__ import annotations
 
 import io
+import re
 from typing import Iterable, Iterator
 
 import chess
 import chess.pgn
+
+from game_analysis import static_exchange_eval
 
 # Pieces and their material values.
 PIECE_VALUE = {
@@ -83,12 +86,68 @@ def _passed_pawns(board: chess.Board, color: bool) -> int:
     return passed
 
 
+def _threats_count(board: chess.Board, color: bool) -> tuple[int, int]:
+    """How many of `color`'s pieces are under a positive-SEE attack right now.
+    Returns (count, total_value_at_risk). Pawns count toward count but not value."""
+    enemy = not color
+    count = 0
+    total = 0
+    for sq in chess.SQUARES:
+        piece = board.piece_at(sq)
+        if not piece or piece.color != color or piece.piece_type == chess.KING:
+            continue
+        attackers = board.attackers(enemy, sq)
+        if not attackers:
+            continue
+        cheapest = min(attackers, key=lambda s: PIECE_VALUE[board.piece_at(s).piece_type])
+        capture = chess.Move(cheapest, sq)
+        b = board.copy(stack=False)
+        if b.turn != enemy:
+            b.turn = enemy
+        if capture not in b.legal_moves:
+            continue
+        try:
+            see = static_exchange_eval(b, capture)
+        except Exception:
+            continue
+        if see > 0:
+            count += 1
+            total += PIECE_VALUE[piece.piece_type]
+    return count, total
+
+
+_CLK_RE = re.compile(r"\[%clk\s+(\d+):(\d+):(\d+(?:\.\d+)?)\]")
+
+
+def _parse_clock_seconds(comment: str) -> float | None:
+    """Pull `[%clk H:MM:SS.s]` from a PGN move comment. Returns seconds."""
+    m = _CLK_RE.search(comment or "")
+    if not m:
+        return None
+    h, mn, s = int(m.group(1)), int(m.group(2)), float(m.group(3))
+    return h * 3600 + mn * 60 + s
+
+
+def _initial_time_seconds(headers) -> float | None:
+    """Parse `TimeControl` header (e.g. '300', '300+5', '180+0')."""
+    tc = headers.get("TimeControl", "")
+    if not tc:
+        return None
+    base = tc.split("+")[0].strip()
+    try:
+        return float(base)
+    except ValueError:
+        return None
+
+
 def extract_position_features(
     board: chess.Board,
     user_color: bool,
     move_number: int,
     prev_score_white_cp: int | None,
     score_window: list[int],
+    time_left: float | None = None,
+    initial_time: float | None = None,
 ) -> dict[str, float]:
     """
     Features computed on the board state right BEFORE the user's move.
@@ -101,11 +160,17 @@ def extract_position_features(
     enemy = not user_color
     legal_moves = list(board.legal_moves)
 
+    threats_count, threats_value = _threats_count(board, user_color)
+    enemy_threats_count, _ = _threats_count(board, enemy)
+
+    # Time pressure as a fraction of starting time (0 = out of time, 1 = full clock).
+    if time_left is not None and initial_time and initial_time > 0:
+        time_frac = max(0.0, min(1.0, time_left / initial_time))
+    else:
+        time_frac = 1.0
+
     feats = {
         "move_number": move_number,
-        "is_white": 1.0 if user_color == chess.WHITE else 0.0,
-        "material_user": _material(board, user_color),
-        "material_enemy": _material(board, enemy),
         "material_diff": _material(board, user_color) - _material(board, enemy),
         "mobility_user": len(legal_moves),
         "in_check": 1.0 if board.is_check() else 0.0,
@@ -119,8 +184,13 @@ def extract_position_features(
             board.has_kingside_castling_rights(user_color)
             or board.has_queenside_castling_rights(user_color)
         ),
-        "fullmove_number": board.fullmove_number,
-        "halfmove_clock": board.halfmove_clock,
+        # Capture-pressure: SEE-positive threats on user pieces
+        "threats_count": threats_count,
+        "threats_value": threats_value,
+        "enemy_threats_count": enemy_threats_count,
+        # Time pressure
+        "time_left_sec": time_left if time_left is not None else 0.0,
+        "time_frac": time_frac,
     }
 
     # Trajectory features — eval from the user's POV before this move
@@ -140,8 +210,24 @@ def extract_position_features(
     return feats
 
 
-def label_for(classification: str | None) -> int:
-    return 1 if classification in BAD_CLASSES else 0
+## Positions where the eval is already past `LABEL_NOISE_CAP` cp in either
+## direction are excluded from training: a "blunder" in a crushed/winning
+## position is noise — the classifier shouldn't try to learn from it.
+LABEL_NOISE_CAP = 700
+
+
+def label_for(classification: str | None, my_cp: int | None = None) -> int | None:
+    """Map a move classification to a binary risk label.
+
+    Returns None when the sample should be dropped from training (positions
+    that are already decided in either direction produce noisy bad-move
+    labels). Callers should skip None.
+    """
+    if classification not in BAD_CLASSES:
+        return 0
+    if my_cp is not None and abs(my_cp) > LABEL_NOISE_CAP:
+        return None
+    return 1
 
 
 def iter_user_moves(pgn_string: str, username: str, analysis_rows: list) -> Iterator[dict]:
@@ -166,8 +252,15 @@ def iter_user_moves(pgn_string: str, username: str, analysis_rows: list) -> Iter
     board = game.board()
     prev_score_white_cp = None
     score_window: list[int] = []
+    initial_time = _initial_time_seconds(headers)
 
-    for idx, move in enumerate(game.mainline_moves()):
+    # Walk PGN with node iteration so we can read [%clk] comments.
+    node = game
+    idx = 0
+
+    while node.variations:
+        next_node = node.variation(0)
+        move = next_node.move
         is_user_move = (board.turn == user_color)
         if idx >= len(analysis_rows):
             break
@@ -175,34 +268,43 @@ def iter_user_moves(pgn_string: str, username: str, analysis_rows: list) -> Iter
 
         if is_user_move:
             move_number = (idx // 2) + 1
-            feats = extract_position_features(
-                board=board,
-                user_color=user_color,
-                move_number=move_number,
-                prev_score_white_cp=prev_score_white_cp,
-                score_window=score_window[-5:],
-            )
-            yield {
-                "features": feats,
-                "label": label_for(analysis.classification),
-                "move_number": move_number,
-                "color": "white" if user_color == chess.WHITE else "black",
-                "move_id": analysis.id,
-                "classification": analysis.classification,
-            }
+            time_left = _parse_clock_seconds(next_node.comment)
+            my_cp_after = (
+                analysis.score if user_color == chess.WHITE else -analysis.score
+            ) if analysis.score is not None else None
+            label = label_for(analysis.classification, my_cp_after)
+            if label is None:
+                # noisy sample — skip entirely (don't yield)
+                pass
+            else:
+                feats = extract_position_features(
+                    board=board,
+                    user_color=user_color,
+                    move_number=move_number,
+                    prev_score_white_cp=prev_score_white_cp,
+                    score_window=score_window[-5:],
+                    time_left=time_left,
+                    initial_time=initial_time,
+                )
+                yield {
+                    "features": feats,
+                    "label": label,
+                    "move_number": move_number,
+                    "color": "white" if user_color == chess.WHITE else "black",
+                    "move_id": analysis.id,
+                    "classification": analysis.classification,
+                }
 
-        # Advance state after recording the position
         board.push(move)
         if analysis.score is not None:
             prev_score_white_cp = analysis.score
             score_window.append(analysis.score)
+        node = next_node
+        idx += 1
 
 
 FEATURE_NAMES = [
     "move_number",
-    "is_white",
-    "material_user",
-    "material_enemy",
     "material_diff",
     "mobility_user",
     "in_check",
@@ -213,8 +315,11 @@ FEATURE_NAMES = [
     "passed_pawns_user",
     "passed_pawns_enemy",
     "castling_rights_user",
-    "fullmove_number",
-    "halfmove_clock",
+    "threats_count",
+    "threats_value",
+    "enemy_threats_count",
+    "time_left_sec",
+    "time_frac",
     "prev_eval_user",
     "eval_volatility",
 ]

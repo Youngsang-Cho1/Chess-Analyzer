@@ -95,6 +95,12 @@ def train(username: str):
     lr_auc = roc_auc_score(y_te, lr.predict_proba(scaler.transform(X_te))[:, 1])
     print(f"  Logistic Regression AUC = {lr_auc:.3f}")
 
+    # Top LR coefficients by absolute weight (scaled features so magnitudes compare).
+    coefs = sorted(zip(FEATURE_NAMES, lr.coef_[0]), key=lambda kv: abs(kv[1]), reverse=True)
+    print("  LR feature importance (top 8):")
+    for name, w in coefs[:8]:
+        print(f"    {name:>22}  {w:+.3f}")
+
     chosen = ("logreg", {"scaler": scaler, "model": lr}, lr_auc)
 
     # --- LightGBM if the signal is at all there ---
@@ -124,6 +130,11 @@ def train(username: str):
         )
         gbm_auc = roc_auc_score(y_te, booster.predict(X_te))
         print(f"  LightGBM AUC          = {gbm_auc:.3f}")
+        gains = sorted(zip(FEATURE_NAMES, booster.feature_importance(importance_type="gain")),
+                       key=lambda kv: kv[1], reverse=True)
+        print("  LightGBM feature importance (top 8 by gain):")
+        for name, g in gains[:8]:
+            print(f"    {name:>22}  {g:.1f}")
         if gbm_auc > lr_auc:
             chosen = ("lightgbm", {"model": booster}, gbm_auc)
     except Exception as e:
