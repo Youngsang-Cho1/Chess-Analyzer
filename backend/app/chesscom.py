@@ -41,25 +41,30 @@ class ChessComClient:
             return None
 
     def get_recent_games(self, username: str, limit: int = 10):
+        """Walk monthly archives newest-first until we've collected at least
+        `limit` games. Chess.com archives one URL per month — without this
+        we'd cap at whatever fits in the most recent month."""
         archives_url = f"{self.base_url}/player/{username}/games/archives"
         try:
-            res = requests.get(archives_url, headers = self.headers)
+            res = requests.get(archives_url, headers=self.headers)
             res.raise_for_status()
             archives = res.json().get('archives', [])
-            
+
             if not archives:
                 return None
 
-            last_month_url = archives[-1]
-            games_response = requests.get(last_month_url, headers=self.headers)
-            games_response.raise_for_status()
-            
-            games = games_response.json().get('games', [])
-            if not games:
-                return None
-            
-            games.reverse()
-            return games # Return all games, let batch.py handle the limit
+            collected = []
+            # Newest month first; keep going until we have enough or run out.
+            for month_url in reversed(archives):
+                month_res = requests.get(month_url, headers=self.headers)
+                month_res.raise_for_status()
+                month_games = month_res.json().get('games', [])
+                month_games.reverse()  # newest-first within the month
+                collected.extend(month_games)
+                if len(collected) >= limit:
+                    break
+
+            return collected or None
 
         except requests.exceptions.RequestException as e:
             print(f"Error fetching games for {username}: {e}")
