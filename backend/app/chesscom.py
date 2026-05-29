@@ -1,5 +1,5 @@
 import requests
-from typing import Optional, Dict, Any
+
 
 class ChessComClient:
     def __init__(self):
@@ -7,38 +7,6 @@ class ChessComClient:
             'User-Agent': 'Chess Analyzer (Python)'
         }
         self.base_url = "https://api.chess.com/pub"
-
-    def get_player_profile(self, username: str):
-        url = f"{self.base_url}/player/{username}"
-        try:
-            res = requests.get(url, headers = self.headers)
-            res.raise_for_status() # generate error if status code's 400 or 500 level
-            return res.json()
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching profile for {username}: {e}")
-            return None
-
-    def get_monthly_games(self, username: str, year: int, month: int):
-        url = f"{self.base_url}/player/{username}/games/archives"
-        year_month = f"{year}-{month:02d}"
-        try:
-            res = requests.get(url, headers = self.header)
-            res.raise_for_status() 
-            archives = res.json().get('archives', [])
-            
-            year_month_url = [archive for archive in archives if archive.endswith(year_month)][0]
-            
-            games_response = requests.get(year_month_url, headers=self.headers)
-            games_response.raise_for_status()
-            
-            games = games_response.json().get('games', [])
-            if not games:
-                return None
-            return games
-
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching {year_month} games for {username}: {e}")
-            return None
 
     def get_recent_games(self, username: str, limit: int = 10):
         """Walk monthly archives newest-first until we've collected at least
@@ -70,17 +38,6 @@ class ChessComClient:
             print(f"Error fetching games for {username}: {e}")
             return None
     
-    def get_game_by_id(self, game_id: str):
-        try:
-            url = f"https://www.chess.com/callback/live/game/{game_id}"
-            res = requests.get(url, headers=self.headers)
-            res.raise_for_status()
-            data = res.json()
-            return data.get('game', {}).get('pgn')
-        except Exception as e:
-            print(f"Error fetching Game ID {game_id}: {e}")
-            return None
-
     def get_games_vs_opponent(self, username: str, opponent_username: str, limit: int = 5):
         collected_games = []
         try:
