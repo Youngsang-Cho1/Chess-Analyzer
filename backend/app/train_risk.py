@@ -22,7 +22,7 @@ import joblib
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupKFold, train_test_split
 from sklearn.preprocessing import StandardScaler
 from sqlalchemy import or_
 
@@ -70,9 +70,26 @@ def collect_dataset(username: str):
         db.close()
 
 
+def _cv_auc(X, y, groups, model_fn, n_splits=5):
+    """Game-level K-fold CV. `model_fn() -> (fit(X,y), predict_proba(X))` factory.
+
+    Returns (mean_auc, std_auc, per_fold_aucs). Splits never put two moves
+    from the same game in different folds, so AUC reflects generalization to
+    *new games*, not just new moves in seen games.
+    """
+    kf = GroupKFold(n_splits=n_splits)
+    aucs = []
+    for tr, te in kf.split(X, y, groups=groups):
+        fit, proba = model_fn()
+        fit(X[tr], y[tr])
+        aucs.append(roc_auc_score(y[te], proba(X[te])))
+    aucs = np.array(aucs)
+    return aucs.mean(), aucs.std(), aucs
+
+
 def train(username: str):
     print(f"Collecting dataset for {username}…")
-    X, y, _meta = collect_dataset(username)
+    X, y, meta = collect_dataset(username)
     n = len(y)
     pos = int(y.sum())
     print(f"  samples={n}  positives={pos}  negatives={n - pos}")
@@ -84,6 +101,50 @@ def train(username: str):
         )
         return None
 
+    groups = np.array([m["game_id"] for m in meta])
+    n_games = len(set(groups))
+    print(f"  games={n_games}")
+
+    # --- Honest game-level CV (does not leak ply from same game) ---
+    def make_lr():
+        def fit_fn(Xt, yt):
+            sc = StandardScaler().fit(Xt)
+            m = LogisticRegression(max_iter=1000, class_weight="balanced")
+            m.fit(sc.transform(Xt), yt)
+            fit_fn.sc = sc
+            fit_fn.m = m
+        def pred_fn(Xv):
+            return fit_fn.m.predict_proba(fit_fn.sc.transform(Xv))[:, 1]
+        return fit_fn, pred_fn
+
+    cv_mean, cv_std, cv_folds = _cv_auc(X, y, groups, make_lr, n_splits=5)
+    print(f"  LR 5-fold game-level CV AUC = {cv_mean:.3f} ± {cv_std:.3f}  (folds: {[f'{a:.3f}' for a in cv_folds]})")
+
+    # Same for LightGBM if available
+    try:
+        import lightgbm as lgb
+
+        def make_lgbm():
+            def fit_fn(Xt, yt):
+                params = {
+                    "objective": "binary", "metric": "auc", "verbosity": -1,
+                    "learning_rate": 0.05, "num_leaves": 31,
+                    "min_data_in_leaf": 20, "feature_fraction": 0.9,
+                    "bagging_fraction": 0.9, "bagging_freq": 5,
+                    "is_unbalance": True,
+                }
+                ds = lgb.Dataset(Xt, label=yt, feature_name=FEATURE_NAMES)
+                fit_fn.b = lgb.train(params, ds, num_boost_round=100)
+            def pred_fn(Xv):
+                return fit_fn.b.predict(Xv)
+            return fit_fn, pred_fn
+
+        gbm_mean, gbm_std, gbm_folds = _cv_auc(X, y, groups, make_lgbm, n_splits=5)
+        print(f"  LightGBM 5-fold game-level CV AUC = {gbm_mean:.3f} ± {gbm_std:.3f}  (folds: {[f'{a:.3f}' for a in gbm_folds]})")
+    except Exception as e:
+        print(f"  LightGBM CV skipped: {e}")
+
+    # --- Final model: train on a single random 80/20 split for the saved pkl ---
     X_tr, X_te, y_tr, y_te = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
