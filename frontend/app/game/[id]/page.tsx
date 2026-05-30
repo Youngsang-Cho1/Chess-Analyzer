@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import ChessBoard from "../../components/ChessBoard";
 import EvalChart from "../../components/EvalChart";
 import RiskStrip from "../../components/RiskStrip";
@@ -179,6 +180,8 @@ export default function GamePage() {
     return (
         <div className="analysis-page salon">
             <div className="max-w-container">
+                <Link href="/" className="back-link">← Dashboard</Link>
+
                 {/* Title block */}
                 <div className="salon-title-block">
                     <div className="salon-title">
@@ -252,6 +255,7 @@ export default function GamePage() {
                                         predictions={riskData.predictions}
                                         totalMoves={analysis.length}
                                         auc={riskData.auc}
+                                        currentPly={currentMoveIndex}
                                         onMoveClick={handleMoveClick}
                                     />
                                 )}
@@ -279,6 +283,7 @@ export default function GamePage() {
                             review={llmReview}
                             loading={isReviewLoading}
                         />
+
                         <MoveGrid
                             moves={analysis}
                             currentPly={currentMoveIndex}

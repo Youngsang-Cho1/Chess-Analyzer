@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import ChessBoard from "../../../components/ChessBoard";
 
 interface MoveData {
@@ -57,12 +58,19 @@ export default function MovesPage() {
         setMoveIndex(idx);
     };
 
+    const classColor = classColors[params.classification as string] || "#64748b";
+
     return (
-        <div className="analysis-page">
+        <div className="analysis-page salon">
             <div className="max-w-container">
-                <h1 className="page-title">
-                    {params.classification} Moves ({moves.length})
-                </h1>
+                <Link href="/" className="back-link">← Dashboard</Link>
+
+                <div className="salon-title-block">
+                    <div className="salon-title" style={{ color: classColor }}>
+                        {params.classification}
+                    </div>
+                    <div className="salon-subtitle">{moves.length} moves · {String(params.username)}</div>
+                </div>
 
                 <div className="review-layout">
                     {/* Left: ChessBoard */}

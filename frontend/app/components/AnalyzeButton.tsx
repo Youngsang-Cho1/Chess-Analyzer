@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 
 interface Props {
     isAnalyzing: boolean;
@@ -5,30 +7,47 @@ interface Props {
     username: string;
 }
 
+const PRESETS = [5, 20, 50, 100];
+
 export default function AnalyzeButton({ isAnalyzing, handleAnalyze, username }: Props) {
+    const [selected, setSelected] = useState(20);
+
     return (
-        <div className="analyze-row">
-            <input
-                id="game-limit"
-                type="number"
-                min="1"
-                max="50"
-                placeholder="Games to analyze (default: 5)"
-                className="game-limit-input"
-                defaultValue={5}
-                disabled={isAnalyzing}
-            />
-            <button
-                onClick={() => {
-                    const input = document.getElementById("game-limit") as HTMLInputElement;
-                    const limit = Number(input.value) || 5; // Default to 5 if empty
-                    handleAnalyze(limit);
-                }}
-                disabled={isAnalyzing}
-                className={isAnalyzing ? "analyze-btn-disabled" : "analyze-btn"}
-            >
-                {isAnalyzing ? `Analyzing ${username}...` : `Analyze ${username}'s Games`}
-            </button>
+        <div className="analyze-hero">
+            <div className="analyze-hero-label">NEW GAMES TO ANALYZE</div>
+            <div className="analyze-hero-controls">
+                <div className="analyze-preset-row">
+                    {PRESETS.map((n) => (
+                        <button
+                            key={n}
+                            onClick={() => setSelected(n)}
+                            disabled={isAnalyzing}
+                            className={`analyze-preset-btn ${selected === n ? "analyze-preset-active" : ""}`}
+                        >
+                            {n}
+                        </button>
+                    ))}
+                    <input
+                        type="number"
+                        min="1"
+                        max="500"
+                        value={selected}
+                        onChange={(e) => setSelected(Number(e.target.value) || 5)}
+                        disabled={isAnalyzing}
+                        className="analyze-custom-input"
+                    />
+                </div>
+                <button
+                    onClick={() => handleAnalyze(selected)}
+                    disabled={isAnalyzing}
+                    className={`analyze-hero-btn ${isAnalyzing ? "analyze-hero-btn--busy" : ""}`}
+                >
+                    {isAnalyzing
+                        ? <><span className="analyze-spinner" /> Analyzing {username}…</>
+                        : <>Analyze {username}</>
+                    }
+                </button>
+            </div>
         </div>
     );
 }

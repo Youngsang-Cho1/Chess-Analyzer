@@ -46,6 +46,7 @@ interface Props {
     predictions: RiskPoint[];
     totalMoves: number;
     auc?: number;
+    currentPly?: number;
     onMoveClick: (index: number) => void;
 }
 
@@ -57,13 +58,8 @@ function riskColor(p: number): string {
     return "rgba(220, 38, 38, 0.7)";                  // red-600
 }
 
-export default function RiskStrip({ predictions, totalMoves, auc, onMoveClick }: Props) {
+export default function RiskStrip({ predictions, totalMoves, auc, currentPly, onMoveClick }: Props) {
     if (!predictions || predictions.length === 0) return null;
-
-    // Map prediction by ply index in the full move list (each user-move alternates with opponent)
-    // We use the prediction order as the user's ply sequence; ply index inside the full game =
-    // index_in_full_list (we approximate by walking 0..totalMoves and picking when color matches).
-    // Easier: render N user-move cells in a strip; align by hovering shows move_number.
 
     return (
         <div className="mt-1">
@@ -73,33 +69,45 @@ export default function RiskStrip({ predictions, totalMoves, auc, onMoveClick }:
                 </span>
                 <span className="text-[10px] text-gray-500">{predictions.length} of your moves</span>
             </div>
-            <div className="flex h-3 w-full overflow-hidden rounded">
-                {predictions.map((p, i) => {
-                    // ply index in the full game: user color at every other ply.
-                    // Best-effort: each user move occupies one cell; click jumps to (i*2+1) approx,
-                    // but parent passes totalMoves to scale.
-                    const plyIndex = mapToPly(i, p.color, totalMoves, predictions.length);
+            <div className="relative">
+                <div className="flex h-3 w-full overflow-hidden rounded">
+                    {predictions.map((p, i) => {
+                        const plyIndex = mapToPly(i, p.color, totalMoves);
+                        return (
+                            <button
+                                key={p.move_id}
+                                onClick={() => onMoveClick(plyIndex)}
+                                title={`Move ${p.move_number} (${p.color}) — risk ${(p.risk * 100).toFixed(0)}%${p.classification ? " · " + p.classification : ""}${
+                                    p.reasons && p.reasons.length
+                                        ? "\nDrivers: " + formatReasons(p.reasons)
+                                        : ""
+                                }`}
+                                className="flex-1 h-full hover:opacity-100 opacity-90 transition-opacity"
+                                style={{ background: riskColor(p.risk) }}
+                            />
+                        );
+                    })}
+                </div>
+                {/* Current move indicator dot */}
+                {currentPly != null && currentPly > 0 && (() => {
+                    const idx = predictions.findIndex((p, i) =>
+                        mapToPly(i, p.color, totalMoves) === currentPly
+                    );
+                    if (idx < 0) return null;
+                    const pct = (idx + 0.5) / predictions.length * 100;
                     return (
-                        <button
-                            key={p.move_id}
-                            onClick={() => onMoveClick(plyIndex)}
-                            title={`Move ${p.move_number} (${p.color}) — risk ${(p.risk * 100).toFixed(0)}%${p.classification ? " · " + p.classification : ""}${
-                                p.reasons && p.reasons.length
-                                    ? "\nDrivers: " + formatReasons(p.reasons)
-                                    : ""
-                            }`}
-                            className="flex-1 h-full hover:opacity-100 opacity-90 transition-opacity"
-                            style={{ background: riskColor(p.risk) }}
+                        <div
+                            className="absolute -top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-md pointer-events-none"
+                            style={{ left: `calc(${pct}% - 5px)`, background: "var(--primary)", transition: "left 0.2s ease" }}
                         />
                     );
-                })}
+                })()}
             </div>
         </div>
     );
 }
 
-function mapToPly(userMoveIdx: number, color: string, totalMoves: number, predCount: number): number {
-    // Total user moves ≈ totalMoves / 2. If predCount matches that, ply ≈ userMoveIdx*2 + (color==='white'?1:2).
+function mapToPly(userMoveIdx: number, color: string, totalMoves: number): number {
     const offset = color === "white" ? 1 : 2;
     const ply = userMoveIdx * 2 + offset;
     return Math.min(totalMoves, Math.max(1, ply));

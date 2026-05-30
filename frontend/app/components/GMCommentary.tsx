@@ -7,6 +7,8 @@ interface MoveLike {
     color: string;
     classification: string;
     best_move?: string | null;
+    score?: number | null;
+    mate_in?: number | null;
 }
 
 interface Props {
@@ -60,6 +62,14 @@ export default function GMCommentary({ move, review, loading }: Props) {
     const glyph = CLS_GLYPH[move.classification] || "";
     const side = move.color === "white" ? "" : "...";
 
+    const cpLabel = move.mate_in != null
+        ? `M${Math.abs(move.mate_in)}`
+        : move.score != null
+            ? `${move.score >= 0 ? "+" : ""}${(move.score / 100).toFixed(2)}`
+            : null;
+
+    const cpPositive = move.mate_in != null ? move.mate_in > 0 : (move.score ?? 0) >= 0;
+
     return (
         <div className="gm-card">
             <div className="gm-header">
@@ -69,6 +79,11 @@ export default function GMCommentary({ move, review, loading }: Props) {
                     <span className="gm-chip-glyph">{glyph}</span>
                     {move.classification}
                 </div>
+                {cpLabel && (
+                    <div className="gm-cp-pill" style={{ color: cpPositive ? "var(--cls-best)" : "var(--cls-blunder)" }}>
+                        {cpLabel}
+                    </div>
+                )}
             </div>
 
             <div className="gm-move-row">

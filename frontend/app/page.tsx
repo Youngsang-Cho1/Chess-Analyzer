@@ -28,10 +28,11 @@ interface Stats {
 
 export default function Home() {
   const [username, setUsername] = useState("choys1211");
-  const [games, setGames] = useState([]);
+  const [games, setGames] = useState<any[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState<{ processed: number; requested: number } | null>(null);
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "insights">("overview");
 
@@ -70,71 +71,30 @@ export default function Home() {
   const runAnalysis = async (limit: number, opponent?: string) => {
     setIsAnalyzing(true);
     try {
-      let url = `http://localhost:8000/analyze/${username}?limit=${limit}`;
-      if (opponent) {
-        url += `&opponent=${opponent}`;
-      }
+      let url = `http://localhost:8000/analyze/${username}?new_games=${limit}`;
+      if (opponent) url += `&opponent=${opponent}`;
 
-      const options = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username }),
-      };
+      const postRes = await fetch(url, { method: "POST" });
+      if (!postRes.ok) throw new Error(`Analysis request failed: ${postRes.status}`);
 
-      // 1. Request Analysis
-      const postRes = await fetch(url, options);
-      if (!postRes.ok) {
-        throw new Error(`Analysis request failed with status: ${postRes.status}`);
-      }
+      const { job_id, } = await postRes.json();
 
-      // 2. Poll the backend until the number of games increases by 'limit'
-      const initialGamesCount = games.length;
-      let targetGamesCount = initialGamesCount + limit;
-      let consecutiveErrors = 0;
-
+      // Poll job status until done or failed
       while (true) {
-        await new Promise((resolve) => setTimeout(resolve, 5000)); // wait 5 seconds
-
-        try {
-          const resGames = await fetch(`http://localhost:8000/games/${username}`);
-
-          if (!resGames.ok) {
-            consecutiveErrors++;
-            if (consecutiveErrors >= 5) {
-              throw new Error("Backend repeatedly failed to respond.");
-            }
-            console.error(`Backend error during polling (Attempt ${consecutiveErrors}/5), retrying...`);
-            continue;
-          }
-
-          // Success, reset error counter
-          consecutiveErrors = 0;
-
-          const dataGames = await resGames.json();
-          const currentGamesCount = (dataGames.games || []).length;
-
-          // Break if we hit our target or if a ton of new games got added unexpectedly
-          if (currentGamesCount >= targetGamesCount || currentGamesCount > initialGamesCount * 1.5) {
-            break;
-          }
-        } catch (e) {
-          consecutiveErrors++;
-          if (consecutiveErrors >= 5) {
-            console.error("Max consecutive polling errors reached. Aborting analysis wait.");
-            break; // Break loop but still try to fetch whatever data exists below
-          }
-          console.error(`Network error during polling (Attempt ${consecutiveErrors}/5). Waiting...`, e);
-        }
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const statusRes = await fetch(`http://localhost:8000/analyze/status/${job_id}`);
+        if (!statusRes.ok) continue;
+        const { status, processed, requested, error } = await statusRes.json();
+        setAnalysisProgress({ processed, requested });
+        if (status === "failed") throw new Error(error || "Analysis failed");
+        if (status === "done") break;
       }
+      setAnalysisProgress(null);
 
-      // Finally, fetch all data to update the UI
       await fetchAllData(username);
-
     } catch (error) {
       console.error("Error during analysis:", error);
-      alert("Analysis failed. Please try again.");
+      alert(`Analysis failed: ${error}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -145,27 +105,31 @@ export default function Home() {
 
   return (
     <div className="analysis-page">
-      <LoadingOverlay isVisible={isAnalyzing || isFetching} message={isAnalyzing ? "Connecting to Chess.com & Initializing Stockfish..." : "Loading Data..."} />
+      <LoadingOverlay isVisible={isAnalyzing || isFetching} message={isAnalyzing ? "Connecting to Chess.com & Initializing Stockfish..." : "Loading Data..."} progress={analysisProgress} />
 
       <div className="max-w-container">
-        <h1 className="page-title">♟️ Chess Analyzer</h1>
+        <h1 className="page-title">♞ Chess Analyzer</h1>
 
-        {/* Search Bar */}
-        <div className="search-container">
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="search-input"
-            placeholder="Enter Chess.com Username..."
-          />
-          <button
-            onClick={handleSearch}
-            className="search-button"
-          >
-            Search
-          </button>
+        {/* Search + Analyze hero row */}
+        <div className="hero-row">
+          <div className="hero-search-card">
+            <div className="analyze-hero-label">PLAYER</div>
+            <div className="analyze-hero-controls">
+              <div className="search-container" style={{ marginBottom: 0, flex: 1 }}>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  className="search-input"
+                  placeholder="Chess.com username…"
+                />
+                <button onClick={handleSearch} className="search-button">Search</button>
+              </div>
+            </div>
+          </div>
+          <AnalyzeButton isAnalyzing={isAnalyzing} handleAnalyze={handleAnalyze} username={username} />
+          <OpponentSearch isAnalyzing={isAnalyzing} handleAnalyze={opponentAnalyze} username={username} />
         </div>
 
         {/* Tabs */}
@@ -214,21 +178,6 @@ export default function Home() {
         {activeTab === "insights" && mounted && (
           <PersonalizedInsights username={username} />
         )}
-
-        {/* Analyze Button */}
-        <div className="mb-8 flex flex-col items-end gap-4">
-          <AnalyzeButton
-            isAnalyzing={isAnalyzing}
-            handleAnalyze={handleAnalyze}
-            username={username}
-          />
-          <OpponentSearch
-            isAnalyzing={isAnalyzing}
-            handleAnalyze={opponentAnalyze}
-            username={username}
-          />
-        </div>
-
 
         {/* Game List */}
         <GameList games={games} username={username} />
