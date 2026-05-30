@@ -163,7 +163,7 @@ def train(username: str):
     for name, w in coefs[:8]:
         print(f"    {name:>22}  {w:+.3f}")
 
-    chosen = ("logreg", {"scaler": scaler, "model": lr}, lr_auc)
+    chosen = ("logreg", {"scaler": scaler, "model": lr}, lr_auc, cv_mean)
 
     # --- LightGBM if the signal is at all there ---
     try:
@@ -209,18 +209,19 @@ def train(username: str):
         print(f"  Brier (raw → calibrated) = {raw_brier:.4f} → {cal_brier:.4f}")
 
         if gbm_auc > lr_auc:
-            chosen = ("lightgbm", {"model": booster, "calibrator": iso}, gbm_auc)
+            chosen = ("lightgbm", {"model": booster, "calibrator": iso}, gbm_auc, gbm_mean)
     except Exception as e:
         print(f"  LightGBM skipped: {e}")
 
-    kind, payload, auc = chosen
+    kind, payload, auc, cv_auc = chosen
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     out_path = MODEL_DIR / f"risk_model_{username.lower()}.pkl"
     joblib.dump(
         {
             "kind": kind,
             "payload": payload,
-            "auc": auc,
+            "auc": cv_auc,          # game-level CV AUC — honest generalization estimate
+            "auc_test": auc,        # random split test AUC (kept for reference)
             "feature_names": FEATURE_NAMES,
             "username": username,
             "n_samples": n,
@@ -228,7 +229,7 @@ def train(username: str):
         },
         out_path,
     )
-    print(f"  Saved {kind} (AUC={auc:.3f}) -> {out_path}")
+    print(f"  Saved {kind} (CV AUC={cv_auc:.3f}, test AUC={auc:.3f}) -> {out_path}")
     return out_path
 
 

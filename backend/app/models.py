@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, BigInteger, ForeignKey, Float, JSON
+from sqlalchemy import Column, Integer, String, Text, BigInteger, ForeignKey, Float, JSON
 from database import Base
 
 class Game(Base):
@@ -7,7 +7,6 @@ class Game(Base):
     id = Column(Integer, primary_key=True, index=True)
     url = Column(String, unique=True, index=True)
     pgn = Column(Text)
-    fen = Column(String)
     time_control = Column(String)
     end_time = Column(BigInteger) # Unix timestamp
     rated = Column(String)
@@ -28,6 +27,19 @@ class Game(Base):
     black_result = Column(String)
     black_accuracy = Column(Float)
     black_move_counts = Column(JSON)
+    ai_insight_cache = Column(Text, nullable=True)
+
+class AnalysisJob(Base):
+    __tablename__ = "analysis_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, index=True)
+    status = Column(String, default="running")  # running | done | failed
+    processed = Column(Integer, default=0)
+    requested = Column(Integer, default=0)
+    error = Column(Text, nullable=True)
+    created_at = Column(BigInteger, default=0)
+
 
 class MoveAnalysis(Base):
     __tablename__ = "move_analysis"
@@ -45,3 +57,5 @@ class MoveAnalysis(Base):
     best_move = Column(String)
     opening = Column(String)
     captured_piece = Column(String)
+    is_sacrifice = Column(String, nullable=True)  # 'true'/'false', nullable for old rows
+    llm_review = Column(Text, nullable=True)

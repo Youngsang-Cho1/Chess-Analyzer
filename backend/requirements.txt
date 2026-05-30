@@ -12,14 +12,11 @@ psycopg2-binary==2.9.7
 # LLM Support
 langchain==0.1.0
 langchain-groq==0.0.1
-langchain-community==0.0.13
 
 # ML
 scikit-learn==1.3.2
 lightgbm==4.3.0
 joblib==1.3.2
-shap==0.44.1
 
-# Data
-pandas==2.1.2
-plotly==5.17.0
+# Dev / test
+pytest==7.4.3

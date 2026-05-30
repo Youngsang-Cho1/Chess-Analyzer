@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
-from rag import ChessRAG
 
 load_dotenv()
 
@@ -10,22 +9,6 @@ load_dotenv()
 class ChessReviewer:
     def __init__(self, model="llama-3.3-70b-versatile"):
         self.llm = ChatGroq(model_name=model)
-        self.rag = ChessRAG()
-
-        self.review_template = PromptTemplate(
-            input_variables=["player", "accuracy", "blunders", "mistakes", "opening"],
-            template=("""You are an expert chess coach analyzing a game.
-
-Game Summary:
-- Player: {player}
-- Accuracy: {accuracy}%
-- Blunders: {blunders}
-- Mistakes: {mistakes}
-- Opening: {opening}
-
-Provide a sincere and thorough review with insightful advice for improvement.
-Focus on the most critical issues and specific recommendations. Keep the tone professional and constructive.
-"""))
 
         self.season_template = PromptTemplate(
             input_variables=["username", "style", "win_rate", "avg_accuracy", "brilliant", "blunder", "total_games"],
@@ -69,14 +52,6 @@ CRITICAL RULES:
 6. No markdown, no bold. Plain text.
 """))
 
-    def review_game(self, game_data):
-        prompt = self.review_template.format(**game_data)
-        try:
-            response = self.llm.invoke(prompt)
-            return response.content
-        except Exception as e:
-            return f"Error generating review: {e}"
-
     def review_season(self, stats):
         data = {
             "username": stats['username'],
@@ -100,15 +75,7 @@ CRITICAL RULES:
         if not move_data.get("captured_piece"):
             move_data["captured_piece"] = "None (not a capture)"
 
-        # Fetch opening theory from RAG
-        opening_name = move_data.get("opening", "")
-        opening_theory = ""
-        if opening_name and opening_name not in ("Unknown", "Opening Move", "No Opening"):
-            theory = self.rag.search_opening_theory(opening_name)
-            if theory:
-                opening_theory = f"Opening Theory Context:\n{theory}"
-
-        move_data["opening_theory"] = opening_theory
+        move_data["opening_theory"] = ""
 
         mate_in = move_data.get("mate_in")
         best_mate_in = move_data.get("best_mate_in")

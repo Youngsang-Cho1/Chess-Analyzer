@@ -7,7 +7,8 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from database import engine, get_db
-from models import Game, MoveAnalysis, Base
+from models import Game, MoveAnalysis, AnalysisJob, Base
+import time
 from batch import process_user_games
 from player_stats import get_player_stats
 from insights import get_player_insights
@@ -58,14 +59,39 @@ def read_root():
 def analyze_games(
     username: str,
     background_tasks: BackgroundTasks,
-    limit: int = 5,
+    db: Session = Depends(get_db),
+    new_games: int = 5,
     opponent: str = None,
 ):
-    background_tasks.add_task(process_user_games, username, limit=limit, opponent=opponent)
-    msg = f"Analysis started for {username} ({limit} games)"
+    job = AnalysisJob(
+        username=username,
+        status="running",
+        processed=0,
+        requested=new_games,
+        created_at=int(time.time()),
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    background_tasks.add_task(process_user_games, username, new_games=new_games, opponent=opponent, job_id=job.id)
+    msg = f"Analysis started for {username} ({new_games} games)"
     if opponent:
         msg += f" vs {opponent}"
-    return {"message": msg + ". Refresh in a few minutes."}
+    return {"message": msg + ".", "job_id": job.id}
+
+
+@app.get("/analyze/status/{job_id}")
+def analyze_status(job_id: int, db: Session = Depends(get_db)):
+    job = db.query(AnalysisJob).filter(AnalysisJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {
+        "job_id": job.id,
+        "status": job.status,
+        "processed": job.processed,
+        "requested": job.requested,
+        "error": job.error,
+    }
 
 
 @app.get("/games/{username}")
@@ -89,7 +115,7 @@ def get_game(game_id: int, db: Session = Depends(get_db)):
 
 @app.get('/stats/{username}')
 def get_stats(username: str):
-    stats = get_player_stats(username, limit=50)
+    stats = get_player_stats(username, limit=1000)
     return {"stats": stats}
 
 
@@ -210,6 +236,9 @@ def review_move(move_id: int, db: Session = Depends(get_db)):
     if not move:
         raise HTTPException(status_code=404, detail="Move not found")
 
+    if move.llm_review:
+        return {"review": move.llm_review}
+
     move_data = {
         "move_san": move.move_san or move.move_uci,
         "classification": move.classification,
@@ -223,4 +252,6 @@ def review_move(move_id: int, db: Session = Depends(get_db)):
         "captured_piece": move.captured_piece,
     }
     review = reviewer.review_move(move_data)
+    move.llm_review = review
+    db.commit()
     return {"review": review}

@@ -66,9 +66,10 @@ THRESH_INACCURACY = 10
 THRESH_MISTAKE    = 20
 
 ## Brilliant gating
-BRILLIANT_CP_LOSS_MAX = 80
-BRILLIANT_MY_CP_MIN   = -200
-BRILLIANT_MY_CP_MAX   = 500
+BRILLIANT_CP_LOSS_MAX  = 50
+BRILLIANT_MY_CP_MIN    = -100   # after the sac, still roughly balanced
+BRILLIANT_MY_CP_MAX    = 500
+BRILLIANT_PREV_CP_MIN  = -150   # before the sac, position must not already be lost
 
 ## Great move: best move + 2nd-best is much worse, in roughly balanced position
 GREAT_SECOND_GAP_MIN  = 400
@@ -105,8 +106,8 @@ def classify_move(
     best_mate_in: int | None,
     is_white: bool,
     is_sac: bool,
-    hanging_value: int,
     prev_classification: str | None,
+    prev_cp: int = 0,
 ) -> str:
     """Single source of truth for move classification.
 
@@ -137,20 +138,20 @@ def classify_move(
             prev_classification=prev_classification,
             cp_loss=cp_loss,
             best_cp=best_cp,
-            my_cp=my_cp,
             my_mate_in=my_mate_in,
             best_mate_in=best_mate_in,
             is_white=is_white,
         ):
             cls = "Miss"
 
-    # 5. Brilliant override — only for non-opening, balanced positions,
-    # where the engine still accepts a material-losing move.
+    # 5. Brilliant override — real material sacrifice OR verified trap
+    # (ignores a hanging piece but has a profitable counter if opponent takes).
     if (
         not is_book
-        and (is_sac or hanging_value > 0)
+        and is_sac
         and cp_loss <= BRILLIANT_CP_LOSS_MAX
         and BRILLIANT_MY_CP_MIN < my_cp < BRILLIANT_MY_CP_MAX
+        and prev_cp > BRILLIANT_PREV_CP_MIN
     ):
         cls = "Brilliant"
 
@@ -163,7 +164,6 @@ def _is_miss(
     prev_classification: str | None,
     cp_loss: int,
     best_cp: int,
-    my_cp: int,
     my_mate_in: int | None,
     best_mate_in: int | None,
     is_white: bool,
@@ -251,90 +251,6 @@ def is_sacrifice(board, move):
         return False
     # Lose at least ~2 points in the exchange to count as a real sacrifice.
     return see <= -2
-
-
-def _square_under_threat(board, color, square, min_value=3):
-    """Is `color`'s piece on `square` hanging? Computed as SEE for the enemy's
-    cheapest capture there: if they gain ≥ min_value, the piece is in danger.
-
-    Returns the gain value (≥ min_value) or 0 if not meaningfully threatened.
-    """
-    piece = board.piece_at(square)
-    if not piece or piece.color != color or piece.piece_type == chess.KING:
-        return 0
-    if PIECE_VALUES[piece.piece_type] < min_value:
-        return 0  # don't flag pawn hangs as "brilliant material"
-
-    attackers = board.attackers(not color, square)
-    if not attackers:
-        return 0
-
-    # Find the cheapest enemy attacker; SEE the capture they could play.
-    cheapest = min(attackers, key=lambda s: PIECE_VALUES[board.piece_at(s).piece_type])
-    capture = chess.Move(cheapest, square)
-    # Ensure it's the enemy's turn on the probe board so the capture is legal.
-    b = board.copy(stack=False)
-    if b.turn != (not color):
-        b.turn = not color
-    if capture not in b.legal_moves:
-        return 0
-    see = static_exchange_eval(b, capture)
-    return see if see >= min_value else 0
-
-
-def ignores_hanging_piece(board, move):
-    """A 'hanging-piece sacrifice': before this move, the mover has at least
-    one piece worth ≥ a minor that the opponent could win on the next move via
-    a positive-SEE capture. This move neither moves that piece, captures on
-    its square, nor blocks/defends it well enough to neutralize the threat.
-    The move must also NOT itself recoup the lost material (e.g. taking the
-    enemy queen while leaving a knight hanging is not a "brilliant ignoring
-    the threat" — it's just a trade).
-
-    Returns the (largest) hanging value if so, else 0.
-    """
-    mover = board.turn
-
-    worst = 0
-    worst_sq = None
-    for sq in chess.SQUARES:
-        threat = _square_under_threat(board, mover, sq, min_value=3)
-        if threat > worst:
-            worst = threat
-            worst_sq = sq
-
-    if worst_sq is None:
-        return 0
-
-    # If the move addresses the threatened piece, it's not "ignoring" it.
-    if move.from_square == worst_sq or move.to_square == worst_sq:
-        return 0
-
-    # If the move itself nets enough material to cover the hanging loss, it's
-    # a profitable trade, not a brilliant sacrifice. Use SEE on the move's
-    # target square; a capture of the enemy queen returns +9 and dwarfs the
-    # +3 hanging knight, so the net is positive material.
-    try:
-        move_gain = static_exchange_eval(board, move)
-    except Exception:
-        move_gain = 0
-    if move_gain >= worst:
-        return 0
-
-    # Did the move neutralize the threat (block, defend enough, capture an
-    # attacker)? Recheck the same square *after* the move; if the enemy can
-    # no longer capture profitably, the threat is handled.
-    b = board.copy(stack=False)
-    b.push(move)
-    # After our move it is opponent's turn — _square_under_threat expects the
-    # piece's owner. We check the same square (piece may have moved? no, we
-    # checked above). Still our piece sits there unless captured en passant
-    # etc. — _square_under_threat returns 0 if piece is gone or safe.
-    still_threat = _square_under_threat(b, mover, worst_sq, min_value=3)
-    if still_threat == 0:
-        return 0  # the move handled it implicitly
-
-    return worst
 
 
 def get_score_val(move_data):
@@ -429,13 +345,31 @@ STOCKFISH_DEPTH = int(os.getenv("STOCKFISH_DEPTH", "16"))
 STOCKFISH_THREADS = int(os.getenv("STOCKFISH_THREADS", "2"))
 STOCKFISH_HASH_MB = int(os.getenv("STOCKFISH_HASH_MB", "256"))
 
+_engine: Stockfish | None = None
+
+def _get_engine() -> Stockfish:
+    global _engine
+    if _engine is None:
+        _engine = Stockfish(
+            path=stockfish_path,
+            depth=STOCKFISH_DEPTH,
+            parameters={"Threads": STOCKFISH_THREADS, "Hash": STOCKFISH_HASH_MB},
+        )
+        return _engine
+    # Verify process is still alive; respawn if crashed
+    try:
+        _engine.get_best_move_time(10)
+    except Exception:
+        _engine = Stockfish(
+            path=stockfish_path,
+            depth=STOCKFISH_DEPTH,
+            parameters={"Threads": STOCKFISH_THREADS, "Hash": STOCKFISH_HASH_MB},
+        )
+    return _engine
+
 
 def analyze_game(pgn_string: str):
-    engine = Stockfish(
-        path=stockfish_path,
-        depth=STOCKFISH_DEPTH,
-        parameters={"Threads": STOCKFISH_THREADS, "Hash": STOCKFISH_HASH_MB},
-    )
+    engine = _get_engine()
     
     pgn_io = io.StringIO(pgn_string)
     game = chess.pgn.read_game(pgn_io)
@@ -463,14 +397,11 @@ def analyze_game(pgn_string: str):
     
     current_opening = pgn_opening
 
-    all_win_percentages = []
-    all_accuracies = []
-    
     print("--- Analysis Start ---")
 
-    opening = True
+    in_book_line = True
     for i, move in enumerate(game.mainline_moves()):
-        if i // 2 >= 12 and current_opening == "Opening Move" and not opening:
+        if i // 2 >= 12 and current_opening == "Opening Move" and not in_book_line:
              current_opening = "No Opening"
         is_white = board.turn
         move_uci = move.uci()
@@ -486,18 +417,22 @@ def analyze_game(pgn_string: str):
                      captured_piece = chess.piece_name(piece.piece_type).capitalize()
         
         board.push(move)
-        # Check Book Status for current move
+        # Check Book Status for current move: is THIS position a known
+        # ECO opening or in the polyglot book?
         is_book = False
         opening_info = get_opening_name(board)
-        
+
         if opening_info:
             current_opening = opening_info.get('name', current_opening)
             is_book = True
         else:
             is_book = is_in_book(board)
-            
-        # remains True if it was already True & current move is in book
-        opening = opening and is_book
+
+        # Track whether we're still inside the unbroken opening line. Once the
+        # game leaves book it stays "out" — a later transposition back into a
+        # known position is a coincidence, not opening theory, so we don't want
+        # to relabel a real middlegame move as "Book".
+        in_book_line = in_book_line and is_book
         
         # 2. Get Top Moves
         board.pop()
@@ -518,7 +453,7 @@ def analyze_game(pgn_string: str):
 
         # Check Sacrifice / hanging-piece (board must be in pre-move state)
         is_sac = is_sacrifice(board, move)
-        hanging_value = ignores_hanging_piece(board, move)
+
 
         board.push(move)
         
@@ -539,7 +474,10 @@ def analyze_game(pgn_string: str):
         # Convert to Win Probability (0-100)
         my_cp = curr_score_white if is_white else -curr_score_white
         best_cp = best_score if is_white else -best_score
-        second_cp = second_score if is_white else -second_score if second_score is not None else None
+        if second_score is None:
+            second_cp = None
+        else:
+            second_cp = second_score if is_white else -second_score
         prev_cp_pers = prev_score if is_white else -prev_score
 
         prev_win_prob = get_win_prob(prev_cp_pers)
@@ -554,7 +492,7 @@ def analyze_game(pgn_string: str):
             move_uci=move_uci,
             best_move_uci=best_move,
             is_only_legal=len(top_moves) == 1,
-            is_book=opening,
+            is_book=in_book_line,
             win_diff=win_diff,
             cp_loss=cp_loss,
             my_cp=my_cp,
@@ -564,8 +502,9 @@ def analyze_game(pgn_string: str):
             best_mate_in=best_mate_in,
             is_white=is_white,
             is_sac=is_sac,
-            hanging_value=hanging_value,
+
             prev_classification=prev_classification,
+            prev_cp=prev_cp_pers,
         )
 
         # 5. Accuracy Calculation 
@@ -588,11 +527,11 @@ def analyze_game(pgn_string: str):
             "cp_loss": cp_loss,
             "win_percent_before": round(prev_win_prob, 1),
             "win_percent_after": round(curr_win_prob, 1),
-            "captured_piece": captured_piece
+            "captured_piece": captured_piece,
+            "is_sacrifice": is_sac,
         }
         analysis_results.append(result)
-        all_win_percentages.append(curr_win_prob)
-    
+
         # Calculate White's Win Probability for stable logging
         white_win_prob = get_win_prob(curr_score_white)
         

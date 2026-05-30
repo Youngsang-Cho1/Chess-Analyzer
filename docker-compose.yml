@@ -5,18 +5,19 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # auto reload
       - ./backend/app:/app
+      - risk_models:/app/data/risk
     env_file:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
       - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      - db
     command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 
   db:
     image: postgres:15
-    container_name: chess-analyzer-db
     ports:
       - "5432:5432"
     env_file:
@@ -26,3 +27,4 @@ services:
 
 volumes:
   postgres_data:
+  risk_models:

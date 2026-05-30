@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 from models import Game, MoveAnalysis
-from sqlalchemy.dialects.postgresql import insert
 
 def save_game(db: Session, game_data: dict, summary: dict = None):
     # Extract relevant fields from nested JSON structure
@@ -14,7 +13,6 @@ def save_game(db: Session, game_data: dict, summary: dict = None):
     new_game = Game(
         url=game_data.get('url'),
         pgn=game_data.get('pgn'),
-        fen=game_data.get('fen'),
         time_control=game_data.get('time_control'),
         end_time=game_data.get('end_time'),
         rated=str(game_data.get('rated')), # Store as string just in case
@@ -65,7 +63,8 @@ def save_analysis(db: Session, game_id: int, analysis_results: list):
             color=result.get('color'),
             best_move=result['best_move'],
             opening=result['opening'],
-            captured_piece=result.get('captured_piece')
+            captured_piece=result.get('captured_piece'),
+            is_sacrifice=str(result.get('is_sacrifice', False)).lower()
         )
         db.add(analysis)
     
