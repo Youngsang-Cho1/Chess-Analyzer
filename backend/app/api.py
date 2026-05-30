@@ -13,7 +13,12 @@ from player_stats import get_player_stats
 from insights import get_player_insights
 from llm_reviewer import ChessReviewer
 from ml_features import FEATURE_NAMES, iter_user_moves
-from train_risk import load_model, predict_proba, train as train_risk_model
+from train_risk import (
+    explain_predictions,
+    load_model,
+    predict_proba,
+    train as train_risk_model,
+)
 
 import numpy as np
 
@@ -174,6 +179,7 @@ def risk_for_game(game_id: int, db: Session = Depends(get_db)):
         [[s["features"][n] for n in FEATURE_NAMES] for s in samples], dtype=float
     )
     probs = predict_proba(bundle, X)
+    reasons = explain_predictions(bundle, X, top_k=3)
 
     preds = [
         {
@@ -182,8 +188,12 @@ def risk_for_game(game_id: int, db: Session = Depends(get_db)):
             "color": s["color"],
             "risk": float(round(p, 3)),
             "classification": s["classification"],
+            "reasons": [
+                {"feature": name, "contribution": round(val, 3)}
+                for name, val in reason
+            ],
         }
-        for s, p in zip(samples, probs)
+        for s, p, reason in zip(samples, probs, reasons)
     ]
     return {
         "trained": True,

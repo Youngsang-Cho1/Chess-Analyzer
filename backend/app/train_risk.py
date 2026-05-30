@@ -20,8 +20,9 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+from sklearn.calibration import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import brier_score_loss, roc_auc_score
 from sklearn.model_selection import GroupKFold, train_test_split
 from sklearn.preprocessing import StandardScaler
 from sqlalchemy import or_
@@ -196,8 +197,19 @@ def train(username: str):
         print("  LightGBM feature importance (top 8 by gain):")
         for name, g in gains[:8]:
             print(f"    {name:>22}  {g:.1f}")
+
+        # Probability calibration: raw LightGBM scores can be over/under-
+        # confident. Fit an isotonic mapping on the held-out fold so the
+        # final predict_proba is calibrated (Brier score reported below).
+        raw_proba = booster.predict(X_te)
+        iso = IsotonicRegression(out_of_bounds="clip").fit(raw_proba, y_te)
+        cal_proba = iso.predict(raw_proba)
+        raw_brier = brier_score_loss(y_te, raw_proba)
+        cal_brier = brier_score_loss(y_te, cal_proba)
+        print(f"  Brier (raw → calibrated) = {raw_brier:.4f} → {cal_brier:.4f}")
+
         if gbm_auc > lr_auc:
-            chosen = ("lightgbm", {"model": booster}, gbm_auc)
+            chosen = ("lightgbm", {"model": booster, "calibrator": iso}, gbm_auc)
     except Exception as e:
         print(f"  LightGBM skipped: {e}")
 
@@ -234,8 +246,40 @@ def predict_proba(model_bundle, X: np.ndarray) -> np.ndarray:
         X_scaled = payload["scaler"].transform(X)
         return payload["model"].predict_proba(X_scaled)[:, 1]
     elif kind == "lightgbm":
-        return payload["model"].predict(X)
+        raw = payload["model"].predict(X)
+        cal = payload.get("calibrator")
+        return cal.predict(raw) if cal is not None else raw
     raise ValueError(f"Unknown model kind: {kind}")
+
+
+def explain_predictions(model_bundle, X: np.ndarray, top_k: int = 3):
+    """Return per-row top-k SHAP contributions.
+
+    For LightGBM we use the built-in `pred_contrib=True` (exact tree SHAP, no
+    extra dep call at predict time). For LR we approximate with
+    (coef × scaled_feature). Returns a list of [(feature_name, signed_contrib),...]
+    per input row, sorted by |contrib| descending, capped at top_k.
+    """
+    kind = model_bundle["kind"]
+    payload = model_bundle["payload"]
+    names = FEATURE_NAMES
+
+    if kind == "lightgbm":
+        contribs = payload["model"].predict(X, pred_contrib=True)
+        # last column is the bias; drop it.
+        contribs = contribs[:, :-1]
+    elif kind == "logreg":
+        scaler = payload["scaler"]
+        coef = payload["model"].coef_[0]
+        contribs = scaler.transform(X) * coef[np.newaxis, :]
+    else:
+        raise ValueError(f"Unknown model kind: {kind}")
+
+    out = []
+    for row in contribs:
+        order = np.argsort(-np.abs(row))[:top_k]
+        out.append([(names[i], float(row[i])) for i in order])
+    return out
 
 
 if __name__ == "__main__":

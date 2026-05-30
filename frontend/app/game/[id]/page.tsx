@@ -45,6 +45,7 @@ interface RiskPred {
     color: string;
     risk: number;
     classification: string;
+    reasons?: { feature: string; contribution: number }[];
 }
 
 export default function GamePage() {

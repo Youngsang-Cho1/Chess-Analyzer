@@ -6,6 +6,40 @@ interface RiskPoint {
     color: string;
     risk: number;
     classification: string;
+    reasons?: { feature: string; contribution: number }[];
+}
+
+// Pretty labels for the raw feature names exposed by the model.
+const FEATURE_LABEL: Record<string, string> = {
+    prev_eval_user: "current eval",
+    eval_volatility: "eval volatility",
+    move_number: "move number",
+    time_frac: "time fraction",
+    time_left_sec: "time left",
+    mobility_user: "your mobility",
+    material_diff: "material balance",
+    king_attackers_user: "attackers on your king",
+    king_attackers_enemy: "attackers on enemy king",
+    threats_count: "threatened pieces",
+    threats_value: "value at risk",
+    enemy_threats_count: "your threats on enemy",
+    in_check: "in check",
+    isolated_pawns_user: "isolated pawns",
+    doubled_pawns_user: "doubled pawns",
+    passed_pawns_user: "passed pawns",
+    passed_pawns_enemy: "enemy passed pawns",
+    castling_rights_user: "castling rights",
+};
+
+function formatReasons(reasons?: { feature: string; contribution: number }[]): string {
+    if (!reasons || reasons.length === 0) return "";
+    return reasons
+        .map((r) => {
+            const sign = r.contribution > 0 ? "↑" : "↓";
+            const label = FEATURE_LABEL[r.feature] || r.feature;
+            return `${sign} ${label}`;
+        })
+        .join(", ");
 }
 
 interface Props {
@@ -49,7 +83,11 @@ export default function RiskStrip({ predictions, totalMoves, auc, onMoveClick }:
                         <button
                             key={p.move_id}
                             onClick={() => onMoveClick(plyIndex)}
-                            title={`Move ${p.move_number} (${p.color}) — risk ${(p.risk * 100).toFixed(0)}%${p.classification ? " · " + p.classification : ""}`}
+                            title={`Move ${p.move_number} (${p.color}) — risk ${(p.risk * 100).toFixed(0)}%${p.classification ? " · " + p.classification : ""}${
+                                p.reasons && p.reasons.length
+                                    ? "\nDrivers: " + formatReasons(p.reasons)
+                                    : ""
+                            }`}
                             className="flex-1 h-full hover:opacity-100 opacity-90 transition-opacity"
                             style={{ background: riskColor(p.risk) }}
                         />
