@@ -54,10 +54,25 @@ def is_in_book(board):
         return False
 
 def get_win_prob(cp):
-    if cp is None: 
+    if cp is None:
         return 50.0
     # sigmoid function for getting the win probability based on the current centipawn score
     return 50 + 50 * (2 / (1 + exp(-0.00368 * cp)) - 1)
+
+
+def _win_prob_with_mate(cp_user, mate_in_white, is_white):
+    """Win% from the user's POV, pinned to 0/100 when a forced mate exists.
+
+    `mate_in_white` is Stockfish's mate value in White's frame (positive = White
+    mates, negative = Black mates), or None for a cp eval. We translate it to the
+    user's frame: a mate for the user → 100%, a mate against them → 0%. Without
+    this, the ±~19990 cp mate encoding saturates the sigmoid near 99% for every
+    mate distance, collapsing win_diff and masking missed/allowed mates.
+    """
+    if mate_in_white is None:
+        return get_win_prob(cp_user)
+    user_mates = (mate_in_white > 0) == is_white
+    return 100.0 if user_mates else 0.0
 
 ## Move-classification thresholds (chess.com Expected Points Model, % points)
 THRESH_EXCELLENT  = 2
@@ -480,9 +495,13 @@ def analyze_game(pgn_string: str):
             second_cp = second_score if is_white else -second_score
         prev_cp_pers = prev_score if is_white else -prev_score
 
+        # Win% from the user's POV. For mate scores the sigmoid on the encoded
+        # ±~19990 cp saturates near 99.x% for both M1 and M8, which collapses
+        # win_diff and hides missed mates. So when a side is mated we pin the
+        # win% to the exact 0/100 endpoint instead of trusting the cp encoding.
         prev_win_prob = get_win_prob(prev_cp_pers)
-        curr_win_prob = get_win_prob(my_cp)
-        best_win_prob = get_win_prob(best_cp)
+        curr_win_prob = _win_prob_with_mate(my_cp, mate_in, is_white)
+        best_win_prob = _win_prob_with_mate(best_cp, best_mate_in, is_white)
 
         # 4. Classify Move
         win_diff = max(0, best_win_prob - curr_win_prob)
